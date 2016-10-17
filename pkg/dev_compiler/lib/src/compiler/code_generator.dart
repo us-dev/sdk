@@ -1578,7 +1578,9 @@ class CodeGenerator extends GeneralizingAstVisitor
             isJsPeerInterface(a) ||
             isNativeAnnotation(a) && _extensionTypes.isNativeClass(classElem));
     if (jsPeerNames != null) {
-        return jsPeerNames.split(',');
+      // Omit the special name "!nonleaf" and any future hacks starting with "!"
+      return jsPeerNames.split(',').where(
+          (peer) => !peer.startsWith("!")).toList();
     } else {
       return [];
     }
