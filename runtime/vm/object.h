@@ -2632,6 +2632,20 @@ class Function : public Object {
 #endif
   }
 
+  void* kernel_function() const {
+#if defined(DART_PRECOMPILED_RUNTIME)
+    return NULL;
+#else
+    return raw_ptr()->kernel_function_;
+#endif
+  }
+
+  void set_kernel_function(void* kernel_function) const {
+#if !defined(DART_PRECOMPILED_RUNTIME)
+    StoreNonPointer(&raw_ptr()->kernel_function_, kernel_function);
+#endif
+  }
+
   bool IsOptimizable() const;
   bool IsNativeAutoSetupScope() const;
   void SetIsOptimizable(bool value) const;
@@ -3151,6 +3165,21 @@ class Field : public Object {
     ASSERT(IsOriginal());
     set_kind_bits(DoubleInitializedBit::update(value, raw_ptr()->kind_bits_));
   }
+
+  void* kernel_field() const {
+#if defined(DART_PRECOMPILED_RUNTIME)
+    return NULL;
+#else
+    return raw_ptr()->kernel_field_;
+#endif
+  }
+
+  void set_kernel_field(void* kernel_field) const {
+#if !defined(DART_PRECOMPILED_RUNTIME)
+    StoreNonPointer(&raw_ptr()->kernel_field_, kernel_field);
+#endif
+  }
+
 
   inline intptr_t Offset() const;
   // Called during class finalization.
@@ -4945,7 +4974,7 @@ class Code : public Object {
     if (!IsDisabled()) return;
     ASSERT(Thread::Current()->IsMutatorThread());
     ASSERT(instructions() != active_instructions());
-    SetActiveInstructions(instructions());
+    SetActiveInstructions(Instructions::Handle(instructions()));
   }
 
   bool IsDisabled() const {
@@ -5001,11 +5030,11 @@ class Code : public Object {
 #endif
   }
 
-  void SetActiveInstructions(RawInstructions* instructions) const;
+  void SetActiveInstructions(const Instructions& instructions) const;
 
-  void set_instructions(RawInstructions* instructions) const {
+  void set_instructions(const Instructions& instructions) const {
     ASSERT(Thread::Current()->IsMutatorThread() || !is_alive());
-    StorePointer(&raw_ptr()->instructions_, instructions);
+    StorePointer(&raw_ptr()->instructions_, instructions.raw());
   }
 
   void set_pointer_offsets_length(intptr_t value) {
@@ -5121,6 +5150,10 @@ class ContextScope : public Object {
 
   TokenPosition TokenIndexAt(intptr_t scope_index) const;
   void SetTokenIndexAt(intptr_t scope_index, TokenPosition token_pos) const;
+
+  TokenPosition DeclarationTokenIndexAt(intptr_t scope_index) const;
+  void SetDeclarationTokenIndexAt(intptr_t scope_index,
+                                  TokenPosition declaration_token_pos) const;
 
   RawString* NameAt(intptr_t scope_index) const;
   void SetNameAt(intptr_t scope_index, const String& name) const;

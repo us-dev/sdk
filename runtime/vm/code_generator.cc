@@ -1728,7 +1728,7 @@ DEFINE_RUNTIME_ENTRY(StackOverflow, 0) {
          FLAG_precompiled_runtime ? 0 : frame->NumLocalVariables();
       TokenPosition unused = TokenPosition::kNoSource;
       for (intptr_t v = 0; v < num_vars; v++) {
-        frame->VariableAt(v, &var_name, &unused, &unused, &var_value);
+        frame->VariableAt(v, &var_name, &unused, &unused, &unused, &var_value);
       }
     }
     FLAG_stacktrace_every = saved_stacktrace_every;
@@ -1864,9 +1864,7 @@ DEFINE_RUNTIME_ENTRY(OptimizeInvokedFunction, 1) {
         ASSERT(isolate->background_compiler() != NULL);
         isolate->background_compiler()->CompileOptimized(function);
         // Continue in the same code.
-        const Code& code = Code::Handle(zone, function.CurrentCode());
-        ASSERT(!code.IsDisabled());
-        arguments.SetReturn(code);
+        arguments.SetReturn(function);
         return;
       }
     }
@@ -1888,9 +1886,7 @@ DEFINE_RUNTIME_ENTRY(OptimizeInvokedFunction, 1) {
     const Code& optimized_code = Code::Handle(zone, function.CurrentCode());
     ASSERT(!optimized_code.IsNull());
   }
-  const Code& code = Code::Handle(zone, function.CurrentCode());
-  ASSERT(!code.IsDisabled());
-  arguments.SetReturn(code);
+  arguments.SetReturn(function);
 #else
   UNREACHABLE();
 #endif  // !DART_PRECOMPILED_RUNTIME

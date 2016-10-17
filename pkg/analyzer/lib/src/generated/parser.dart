@@ -2780,6 +2780,7 @@ class Parser {
    *         normalFormalParameter ('=' expression)?
    *
    *     defaultNamedParameter ::=
+   *         normalFormalParameter ('=' expression)?
    *         normalFormalParameter (':' expression)?
    */
   FormalParameter parseFormalParameter(ParameterKind kind) {
@@ -2788,10 +2789,7 @@ class Parser {
     if (type == TokenType.EQ) {
       Token separator = getAndAdvance();
       Expression defaultValue = parseExpression2();
-      if (kind == ParameterKind.NAMED) {
-        _reportErrorForToken(
-            ParserErrorCode.WRONG_SEPARATOR_FOR_NAMED_PARAMETER, separator);
-      } else if (kind == ParameterKind.REQUIRED) {
+      if (kind == ParameterKind.REQUIRED) {
         _reportErrorForNode(
             ParserErrorCode.POSITIONAL_PARAMETER_OUTSIDE_GROUP, parameter);
       }
@@ -6432,7 +6430,8 @@ class Parser {
         if (leftSquareBracket == null) {
           if (leftCurlyBracket != null) {
             _reportErrorForCurrentToken(
-                ParserErrorCode.WRONG_TERMINATOR_FOR_PARAMETER_GROUP, ["}"]);
+                ParserErrorCode.WRONG_TERMINATOR_FOR_PARAMETER_GROUP,
+                ['}', ']']);
             rightCurlyBracket = rightSquareBracket;
             rightSquareBracket = null;
           } else {
@@ -6447,7 +6446,8 @@ class Parser {
         if (leftCurlyBracket == null) {
           if (leftSquareBracket != null) {
             _reportErrorForCurrentToken(
-                ParserErrorCode.WRONG_TERMINATOR_FOR_PARAMETER_GROUP, ["]"]);
+                ParserErrorCode.WRONG_TERMINATOR_FOR_PARAMETER_GROUP,
+                [']', '}']);
             rightSquareBracket = rightCurlyBracket;
             rightCurlyBracket = null;
           } else {
@@ -7844,7 +7844,7 @@ class Parser {
   }
 
   /**
-   * Validate that the given set of [modifiers] is appropriate for a class and
+   * Validate that the given set of [modifiers] is appropriate for an enum and
    * return the 'abstract' keyword if there is one.
    */
   void _validateModifiersForEnum(Modifiers modifiers) {

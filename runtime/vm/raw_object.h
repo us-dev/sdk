@@ -869,6 +869,7 @@ class RawFunction : public RawObject {
   uint32_t kind_tag_;  // See Function::KindTagBits.
   int16_t num_fixed_parameters_;
   int16_t num_optional_parameters_;  // > 0: positional; < 0: named.
+  NOT_IN_PRECOMPILED(void* kernel_function_);
   NOT_IN_PRECOMPILED(uint16_t optimized_instruction_count_);
   NOT_IN_PRECOMPILED(uint16_t optimized_call_site_count_);
   NOT_IN_PRECOMPILED(int8_t deoptimization_counter_);
@@ -965,6 +966,7 @@ class RawField : public RawObject {
   int8_t guarded_list_length_in_object_offset_;
 
   uint8_t kind_bits_;  // static, final, const, has initializer....
+  NOT_IN_PRECOMPILED(void* kernel_field_);
 
   friend class CidRewriteVisitor;
 };
@@ -1353,6 +1355,7 @@ class RawLocalVarDescriptors : public RawObject {
   struct VarInfo {
     int32_t index_kind;  // Bitfield for slot index on stack or in context,
                          // and Entry kind of type VarInfoKind.
+    TokenPosition declaration_pos;   // Token position of declaration.
     TokenPosition begin_pos;   // Token position of scope start.
     TokenPosition end_pos;     // Token position of scope end.
     int16_t scope_id;    // Scope to which the variable belongs.
@@ -1455,6 +1458,7 @@ class RawContextScope : public RawObject {
   // TODO(iposva): Switch to conventional enum offset based structure to avoid
   // alignment mishaps.
   struct VariableDesc {
+    RawSmi* declaration_token_pos;
     RawSmi* token_pos;
     RawString* name;
     RawBool* is_final;
