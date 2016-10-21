@@ -141,7 +141,8 @@ var dart_library =
           audioContext = new webkitAudioContext();
         } else {
           audioContext = new AudioContext();
-          window.StereoPannerNode = audioContext.createStereoPanner().constructor;
+          window.StereoPannerNode =
+              audioContext.createStereoPanner().constructor;
         }
         window.PannerNode = audioContext.createPanner().constructor;
       }

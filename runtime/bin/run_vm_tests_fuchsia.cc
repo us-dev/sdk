@@ -5,11 +5,11 @@
 #include <fcntl.h>
 #include <launchpad/launchpad.h>
 #include <launchpad/vmo.h>
+#include <magenta/status.h>
 #include <magenta/syscalls.h>
+#include <magenta/syscalls/object.h>
 #include <mxio/util.h>
 #include <pthread.h>
-#include <runtime/status.h>
-#include <runtime/sysinfo.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -98,17 +98,12 @@ const char* kExpectFail[] = {
   "Fail2",
   "AllocGeneric_Overflow",
   "CodeImmutability",
+  // Assumes initial thread's stack is the same size as spawned thread stacks.
+  "StackOverflowStacktraceInfo",
 };
 
 // Bugs to fix, or things that are not yet implemented.
 const char* kBugs[] = {
-  // Needs NativeSymbolResolver
-  "Service_PersistentHandles",
-  // Needs lstat
-  "DirectoryCreateTemp",
-  "DirectoryCreateDelete",
-  // Needs rename
-  "DirectoryRename",
   // Needs read of RSS.
   "InitialRSS",
 };
@@ -140,15 +135,13 @@ static bool isBug(const char* test) {
   return contains(kBugs, sizeof(kBugs) / sizeof(kBugs[0]), test);
 }
 
-
 #define RETURN_IF_ERROR(status)                                                \
   if (status < 0) {                                                            \
-    fprintf(stderr, "%s:%d: Magenta call failed: %s\n",                        \
-        __FILE__, __LINE__, mx_strstatus(static_cast<mx_status_t>(status)));   \
+    fprintf(stderr, "%s:%d: Magenta call failed: %s\n", __FILE__, __LINE__,    \
+            mx_status_get_string(static_cast<mx_status_t>(status)));           \
     fflush(0);                                                                 \
     return status;                                                             \
-  }                                                                            \
-
+  }
 
 // This is mostly taken from //magenta/system/uapp/mxsh with the addtion of
 // launchpad_add_pipe calls to setup pipes for stdout and stderr.
@@ -348,7 +341,7 @@ static void* test_runner_thread(void* arg) {
 static void run_all_tests(runner_args_t* args) {
   const intptr_t num_cpus = sysconf(_SC_NPROCESSORS_CONF);
   pthread_t* threads =
-    reinterpret_cast<pthread_t*>(malloc(num_cpus * sizeof(pthread_t)));
+      reinterpret_cast<pthread_t*>(malloc(num_cpus * sizeof(pthread_t)));
   for (int i = 0; i < num_cpus; i++) {
     pthread_create(&threads[i], NULL, test_runner_thread, args);
   }
