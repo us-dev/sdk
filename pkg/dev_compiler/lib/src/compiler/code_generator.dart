@@ -5264,8 +5264,13 @@ class CodeGenerator extends GeneralizingAstVisitor
   ///
   JS.Expression _emitMemberName(String name,
       {DartType type, bool isStatic: false, bool useExtension}) {
-    // Static members skip the rename steps.
-    if (isStatic) return _propertyName(name);
+    if (isStatic) {
+      if (JS.invalidStaticFieldName(name)) {
+        return _propertyName('+$name');
+      } else {
+        return _propertyName(name);
+      }
+    }
 
     if (name.startsWith('_')) {
       return _emitPrivateNameSymbol(currentLibrary, name);
