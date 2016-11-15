@@ -12,6 +12,7 @@ import '../constants/values.dart' show ConstantValue, IntConstantValue;
 import '../core_types.dart' show CoreClasses, CoreTypes;
 import '../dart_types.dart' show DartType;
 import '../elements/elements.dart';
+import '../js_backend/backend_helpers.dart';
 import '../js_backend/js_backend.dart' as js;
 import '../native/native.dart' as native;
 import '../resolution/operators.dart' as op;
@@ -481,9 +482,7 @@ class SimpleTypeInferrerVisitor<T>
         });
       }
       if (analyzedElement.isGenerativeConstructor && cls.isAbstract) {
-        if (compiler.closedWorld.isDirectlyInstantiated(cls)) {
-          returnType = types.nonNullExact(cls);
-        } else if (compiler.closedWorld.isIndirectlyInstantiated(cls)) {
+        if (compiler.closedWorld.isInstantiated(cls)) {
           returnType = types.nonNullSubclass(cls);
         } else {
           // TODO(johnniwinther): Avoid analyzing [analyzedElement] in this
@@ -1841,7 +1840,9 @@ class SimpleTypeInferrerVisitor<T>
     TypeMask mask = elements.getTypeMask(node);
     String name = element.name;
     handleStaticSend(node, selector, mask, element, arguments);
-    if (name == 'JS' || name == 'JS_EMBEDDED_GLOBAL' || name == 'JS_BUILTIN') {
+    if (name == BackendHelpers.JS ||
+        name == BackendHelpers.JS_EMBEDDED_GLOBAL ||
+        name == BackendHelpers.JS_BUILTIN) {
       native.NativeBehavior nativeBehavior = elements.getNativeData(node);
       sideEffects.add(nativeBehavior.sideEffects);
       return inferrer.typeOfNativeBehavior(nativeBehavior);

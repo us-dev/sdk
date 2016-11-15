@@ -6887,9 +6887,10 @@ class ResolverVisitor extends ScopedVisitor {
       potentialType ??= DynamicTypeImpl.instance;
 
       // Check if we can promote to potentialType from type.
-      if (typeSystem.canPromoteToType(potentialType, type)) {
+      DartType promoteType = typeSystem.tryPromoteToType(potentialType, type);
+      if (promoteType != null) {
         // Do promote type of variable.
-        _promoteManager.setType(element, potentialType);
+        _promoteManager.setType(element, promoteType);
       }
     }
   }
@@ -9528,7 +9529,7 @@ class TypeResolverVisitor extends ScopedVisitor {
       _recordType(exception, exceptionType);
       Element element = exception.staticElement;
       if (element is VariableElementImpl) {
-        element.type = exceptionType;
+        element.declaredType = exceptionType;
       } else {
         // TODO(brianwilkerson) Report the internal error
       }
@@ -9538,7 +9539,7 @@ class TypeResolverVisitor extends ScopedVisitor {
       _recordType(stackTrace, typeProvider.stackTraceType);
       Element element = stackTrace.staticElement;
       if (element is VariableElementImpl) {
-        element.type = typeProvider.stackTraceType;
+        element.declaredType = typeProvider.stackTraceType;
       } else {
         // TODO(brianwilkerson) Report the internal error
       }
@@ -9664,7 +9665,7 @@ class TypeResolverVisitor extends ScopedVisitor {
       declaredType = _typeNameResolver._getType(typeName);
     }
     LocalVariableElementImpl element = node.element as LocalVariableElementImpl;
-    element.type = declaredType;
+    element.declaredType = declaredType;
     return null;
   }
 
@@ -9687,7 +9688,7 @@ class TypeResolverVisitor extends ScopedVisitor {
         } else {
           type = _typeNameResolver._getType(typeName);
         }
-        element.type = type ?? _dynamicType;
+        element.declaredType = type ?? _dynamicType;
       } else {
         _setFunctionTypedParameterType(element, node.type, node.parameters);
       }
@@ -9711,7 +9712,7 @@ class TypeResolverVisitor extends ScopedVisitor {
       AnalysisEngine.instance.logger.logError(buffer.toString(),
           new CaughtException(new AnalysisException(), null));
     }
-    element.returnType = _computeReturnType(node.returnType);
+    element.declaredReturnType = _computeReturnType(node.returnType);
     element.type = new FunctionTypeImpl(element);
     _inferSetterReturnType(element);
     return null;
@@ -9760,7 +9761,7 @@ class TypeResolverVisitor extends ScopedVisitor {
       AnalysisEngine.instance.logger.logError(buffer.toString(),
           new CaughtException(new AnalysisException(), null));
     }
-    element.returnType = _computeReturnType(node.returnType);
+    element.declaredReturnType = _computeReturnType(node.returnType);
     element.type = new FunctionTypeImpl(element);
     _inferSetterReturnType(element);
     if (element is PropertyAccessorElement) {
@@ -9768,11 +9769,11 @@ class TypeResolverVisitor extends ScopedVisitor {
       PropertyInducingElementImpl variable =
           accessor.variable as PropertyInducingElementImpl;
       if (accessor.isGetter) {
-        variable.type = element.returnType;
+        variable.declaredType = element.returnType;
       } else if (variable.type == null) {
         List<ParameterElement> parameters = element.parameters;
         if (parameters != null && parameters.length > 0) {
-          variable.type = parameters[0].type;
+          variable.declaredType = parameters[0].type;
         }
       }
     }
@@ -9897,7 +9898,7 @@ class TypeResolverVisitor extends ScopedVisitor {
     }
     Element element = node.identifier.staticElement;
     if (element is ParameterElementImpl) {
-      element.type = declaredType;
+      element.declaredType = declaredType;
     } else {
       // TODO(brianwilkerson) Report the internal error.
     }
@@ -9943,8 +9944,18 @@ class TypeResolverVisitor extends ScopedVisitor {
   @override
   Object visitVariableDeclaration(VariableDeclaration node) {
     super.visitVariableDeclaration(node);
+    var variableList = node.parent as VariableDeclarationList;
+    // When the library is resynthesized, the types of field elements are
+    // already set - statically or inferred. We don't want to overwrite them.
+    // See also dartbug.com/27482 for separating static and inferred types.
+    if (variableList.parent is FieldDeclaration &&
+        LibraryElementImpl.hasResolutionCapability(
+            definingLibrary, LibraryResolutionCapability.resolvedTypeNames)) {
+      return null;
+    }
+    // Resolve the type.
     DartType declaredType;
-    TypeName typeName = (node.parent as VariableDeclarationList).type;
+    TypeName typeName = variableList.type;
     if (typeName == null) {
       declaredType = _dynamicType;
     } else {
@@ -9952,7 +9963,7 @@ class TypeResolverVisitor extends ScopedVisitor {
     }
     Element element = node.name.staticElement;
     if (element is VariableElementImpl) {
-      element.type = declaredType;
+      element.declaredType = declaredType;
     }
     return null;
   }
@@ -10026,7 +10037,7 @@ class TypeResolverVisitor extends ScopedVisitor {
         element is PropertyAccessorElementImpl &&
         element.isSetter &&
         element.hasImplicitReturnType) {
-      element.returnType = VoidTypeImpl.instance;
+      element.declaredReturnType = VoidTypeImpl.instance;
     }
   }
 
@@ -10174,7 +10185,7 @@ class TypeResolverVisitor extends ScopedVisitor {
     FunctionElementImpl functionElement = new FunctionElementImpl.forNode(null);
     functionElement.synthetic = true;
     functionElement.shareParameters(parameters);
-    functionElement.returnType = _computeReturnType(returnType);
+    functionElement.declaredReturnType = _computeReturnType(returnType);
     functionElement.enclosingElement = element;
     functionElement.shareTypeParameters(element.typeParameters);
     element.type = new FunctionTypeImpl(functionElement);

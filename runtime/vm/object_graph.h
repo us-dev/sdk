@@ -2,8 +2,8 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-#ifndef VM_OBJECT_GRAPH_H_
-#define VM_OBJECT_GRAPH_H_
+#ifndef RUNTIME_VM_OBJECT_GRAPH_H_
+#define RUNTIME_VM_OBJECT_GRAPH_H_
 
 #include "vm/allocation.h"
 #include "vm/object.h"
@@ -29,9 +29,10 @@ class ObjectGraph : public StackResource {
     bool MoveToParent();
     // Offset into parent for the pointer to current object. -1 if no parent.
     intptr_t OffsetFromParentInWords() const;
+
    private:
     StackIterator(const Stack* stack, intptr_t index)
-        : stack_(stack), index_(index) { }
+        : stack_(stack), index_(index) {}
     const Stack* stack_;
     intptr_t index_;
     friend class ObjectGraph::Stack;
@@ -46,7 +47,7 @@ class ObjectGraph : public StackResource {
       kBacktrack,  // Ignore this object's pointers.
       kAbort,      // Terminate the entire search immediately.
     };
-    virtual ~Visitor() { }
+    virtual ~Visitor() {}
     // Visits the object pointed to by *it. The iterator is only valid
     // during this call. This method must not allocate from the heap or
     // trigger GC in any way.
@@ -105,4 +106,4 @@ class ObjectGraph : public StackResource {
 
 }  // namespace dart
 
-#endif  // VM_OBJECT_GRAPH_H_
+#endif  // RUNTIME_VM_OBJECT_GRAPH_H_

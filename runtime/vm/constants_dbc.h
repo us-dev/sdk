@@ -2,8 +2,8 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-#ifndef VM_CONSTANTS_DBC_H_
-#define VM_CONSTANTS_DBC_H_
+#ifndef RUNTIME_VM_CONSTANTS_DBC_H_
+#define RUNTIME_VM_CONSTANTS_DBC_H_
 
 #include "platform/globals.h"
 #include "platform/assert.h"
@@ -12,6 +12,7 @@
 
 namespace dart {
 
+// clang-format off
 // List of Dart Bytecode instructions.
 //
 // INTERPRETER STATE
@@ -729,8 +730,8 @@ namespace dart {
   V(DCeil,                         A_D, reg, reg, ___) \
   V(DoubleToFloat,                 A_D, reg, reg, ___) \
   V(FloatToDouble,                 A_D, reg, reg, ___) \
-  V(DoubleIsNaN,                   A_D, reg, reg, ___) \
-  V(DoubleIsInfinite,              A_D, reg, reg, ___) \
+  V(DoubleIsNaN,                     A, reg, ___, ___) \
+  V(DoubleIsInfinite,                A, reg, ___, ___) \
   V(StoreStaticTOS,                  D, lit, ___, ___) \
   V(PushStatic,                      D, lit, ___, ___) \
   V(InitStaticTOS,                   0, ___, ___, ___) \
@@ -822,7 +823,9 @@ namespace dart {
   V(CheckStack,                      0, ___, ___, ___) \
   V(DebugStep,                       0, ___, ___, ___) \
   V(DebugBreak,                      A, num, ___, ___) \
-  V(Deopt,                         A_D, num, num, ___) \
+  V(Deopt,                         A_D, num, num, ___)
+
+// clang-format on
 
 typedef uint32_t Instr;
 
@@ -830,7 +833,7 @@ class Bytecode {
  public:
   enum Opcode {
 #define DECLARE_BYTECODE(name, encoding, op1, op2, op3) k##name,
-BYTECODES_LIST(DECLARE_BYTECODE)
+    BYTECODES_LIST(DECLARE_BYTECODE)
 #undef DECLARE_BYTECODE
   };
 
@@ -868,9 +871,7 @@ BYTECODES_LIST(DECLARE_BYTECODE)
     return op | (x << kAShift);
   }
 
-  static Instr Encode(Opcode op) {
-    return op;
-  }
+  static Instr Encode(Opcode op) { return op; }
 
   DART_FORCE_INLINE static uint8_t DecodeA(Instr bc) {
     return (bc >> kAShift) & kAMask;
@@ -966,4 +967,4 @@ enum Condition { NEXT_IS_TRUE, NEXT_IS_FALSE };
 
 }  // namespace dart
 
-#endif  // VM_CONSTANTS_DBC_H_
+#endif  // RUNTIME_VM_CONSTANTS_DBC_H_

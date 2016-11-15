@@ -8,6 +8,7 @@ import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/src/dart/ast/ast.dart';
 import 'package:analyzer/src/dart/ast/utilities.dart';
+import 'package:analyzer/src/dart/element/element.dart';
 import 'package:analyzer/src/generated/declaration_resolver.dart';
 import 'package:analyzer/src/generated/engine.dart';
 import 'package:analyzer/src/generated/source.dart';
@@ -45,13 +46,16 @@ class DeclarationResolverMetadataTest extends ResolverTestCase {
   CompilationUnit unit;
   CompilationUnit unit2;
 
-  void checkMetadata(String search) {
+  void checkMetadata(String search, {bool expectDifferent: false}) {
     NodeList<Annotation> metadata = _findMetadata(unit, search);
     NodeList<Annotation> metadata2 = _findMetadata(unit2, search);
     expect(metadata, isNotEmpty);
     for (int i = 0; i < metadata.length; i++) {
-      expect(
-          metadata2[i].elementAnnotation, same(metadata[i].elementAnnotation));
+      Matcher expectation = same(metadata[i].elementAnnotation);
+      if (expectDifferent) {
+        expectation = isNot(expectation);
+      }
+      expect(metadata2[i].elementAnnotation, expectation);
     }
   }
 
@@ -83,7 +87,7 @@ class DeclarationResolverMetadataTest extends ResolverTestCase {
 
   void test_metadata_declaredIdentifier() {
     setupCode('f(x, y) { for (@a var x in y) {} }');
-    checkMetadata('var');
+    checkMetadata('var', expectDifferent: true);
   }
 
   void test_metadata_enumDeclaration() {
@@ -164,6 +168,20 @@ class DeclarationResolverMetadataTest extends ResolverTestCase {
     checkMetadata('L');
   }
 
+  void test_metadata_libraryDirective_resynthesized() {
+    CompilationUnit unit = resolveSource('@a library L; const a = null;');
+    expect(unit.directives.single.metadata.single.name.name, 'a');
+    var unitElement = unit.element as CompilationUnitElementImpl;
+    // Damage the unit element - as if "setAnnotations" were not called.
+    // The LibraryElement still has the metadata, we should use it.
+    unitElement.setAnnotations(unit.directives.single.offset, []);
+    expect(unitElement.library.metadata, hasLength(1));
+    // DeclarationResolver on the clone should succeed.
+    CompilationUnit clonedUnit = AstCloner.clone(unit);
+    new DeclarationResolver().resolve(clonedUnit, unit.element);
+    expect(clonedUnit.directives.single.metadata.single.name.name, 'a');
+  }
+
   void test_metadata_localFunctionDeclaration() {
     setupCode('f() { @a g() {} }');
     // Note: metadata on local function declarations is ignored by the
@@ -175,7 +193,7 @@ class DeclarationResolverMetadataTest extends ResolverTestCase {
 
   void test_metadata_localVariableDeclaration() {
     setupCode('f() { @a int x; }');
-    checkMetadata('x');
+    checkMetadata('x', expectDifferent: true);
   }
 
   void test_metadata_methodDeclaration_getter() {
@@ -256,6 +274,70 @@ class DeclarationResolverTest extends ResolverTestCase {
   @override
   void setUp() {
     super.setUp();
+  }
+
+  void test_closure_inside_catch_block() {
+    String code = '''
+f() {
+  try {
+  } catch (e) {
+    return () => null;
+  }
+}
+''';
+    CompilationUnit unit = resolveSource(code);
+    // re-resolve
+    _cloneResolveUnit(unit);
+    // no other validations than built into DeclarationResolver
+  }
+
+  void test_closure_inside_labeled_statement() {
+    String code = '''
+f(b) {
+  foo: while (true) {
+    if (b) {
+      break foo;
+    }
+    return () => null;
+  }
+}
+''';
+    CompilationUnit unit = resolveSource(code);
+    // re-resolve
+    _cloneResolveUnit(unit);
+    // no other validations than built into DeclarationResolver
+  }
+
+  void test_closure_inside_switch_case() {
+    String code = '''
+void f(k, m) {
+  switch (k) {
+    case 0:
+      m.forEach((key, value) {});
+    break;
+  }
+}
+''';
+    CompilationUnit unit = resolveSource(code);
+    // re-resolve
+    _cloneResolveUnit(unit);
+    // no other validations than built into DeclarationResolver
+  }
+
+  void test_closure_inside_switch_default() {
+    String code = '''
+void f(k, m) {
+  switch (k) {
+    default:
+      m.forEach((key, value) {});
+    break;
+  }
+}
+''';
+    CompilationUnit unit = resolveSource(code);
+    // re-resolve
+    _cloneResolveUnit(unit);
+    // no other validations than built into DeclarationResolver
   }
 
   void test_enumConstant_partiallyResolved() {

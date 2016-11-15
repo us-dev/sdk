@@ -4,8 +4,8 @@
  * BSD-style license that can be found in the LICENSE file.
  */
 
-#ifndef INCLUDE_DART_API_H_
-#define INCLUDE_DART_API_H_
+#ifndef RUNTIME_INCLUDE_DART_API_H_
+#define RUNTIME_INCLUDE_DART_API_H_
 
 /** \mainpage Dart Embedding API Reference
  *
@@ -854,7 +854,9 @@ DART_EXPORT bool Dart_IsVMFlagSet(const char* flag_name);
  *
  * A snapshot can be used to restore the VM quickly to a saved state
  * and is useful for fast startup. If snapshot data is provided, the
- * isolate will be started using that snapshot data.
+ * isolate will be started using that snapshot data. Requires a core snapshot or
+ * an app snapshot created by Dart_CreateSnapshot or
+ * Dart_CreatePrecompiledSnapshot* from a VM with the same version.
  *
  * Requires there to be no current isolate.
  *
@@ -2795,7 +2797,9 @@ DART_EXPORT Dart_Handle Dart_LoadScript(Dart_Handle url,
                                         intptr_t col_offset);
 
 /**
- * Loads the root script for current isolate from a snapshot.
+ * Loads the root script for current isolate from a script snapshot. The
+ * snapshot must have been created by Dart_CreateScriptSnapshot from a VM with
+ * the same version.
  *
  * \param buffer A buffer which contains a snapshot of the script.
  * \param buffer_len Length of the passed in buffer.
@@ -2939,6 +2943,19 @@ DART_EXPORT Dart_Handle Dart_LoadLibrary(Dart_Handle url,
 DART_EXPORT Dart_Handle Dart_LibraryImportLibrary(Dart_Handle library,
                                                   Dart_Handle import,
                                                   Dart_Handle prefix);
+
+
+/**
+ * Returns a flattened list of pairs. The first element in each pair is the
+ * importing library and and the second element is the imported library for each
+ * import in the isolate of a library whose URI's scheme is [scheme].
+ *
+ * Requires there to be a current isolate.
+ *
+ * \return A handle to a list of flattened pairs of importer-importee.
+ */
+DART_EXPORT Dart_Handle Dart_GetImportsOfScheme(Dart_Handle scheme);
+
 
 /**
  * Called by the embedder to provide the source for a "part of"
@@ -3187,19 +3204,9 @@ DART_EXPORT Dart_Handle Dart_CreateAppJITSnapshot(
 
 /**
  *  Returns whether the VM only supports running from precompiled snapshots and
- *  not from any other kind of snapshot or no snapshot (that is, the VM was
+ *  not from any other kind of snapshot or from source (that is, the VM was
  *  compiled with DART_PRECOMPILED_RUNTIME).
  */
 DART_EXPORT bool Dart_IsPrecompiledRuntime();
-
-
-/**
- *  Returns whether the VM was initialized with a precompiled snapshot. Only
- *  valid after Dart_Initialize.
- *  DEPRECATED. This is currently used to disable Platform.executable and
- *  Platform.resolvedExecutable under precompilation to prevent process
- *  spawning tests from becoming fork-bombs.
- */
-DART_EXPORT bool Dart_IsRunningPrecompiledCode();
 
 #endif  /* INCLUDE_DART_API_H_ */  /* NOLINT */

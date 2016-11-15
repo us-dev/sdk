@@ -5,8 +5,10 @@
 #include "vm/globals.h"
 #if defined(TARGET_ARCH_ARM)
 
-#include "vm/assembler.h"
 #include "vm/cpu.h"
+#include "vm/cpu_arm.h"
+
+#include "vm/assembler.h"
 #include "vm/cpuinfo.h"
 #include "vm/heap.h"
 #include "vm/isolate.h"
@@ -14,8 +16,8 @@
 #include "vm/simulator.h"
 
 #if !defined(USING_SIMULATOR)
-#include <sys/syscall.h>  /* NOLINT */
-#include <unistd.h>  /* NOLINT */
+#include <sys/syscall.h> /* NOLINT */
+#include <unistd.h>      /* NOLINT */
 #endif
 
 // ARM version differences.
@@ -59,17 +61,23 @@ namespace dart {
 #if defined(TARGET_ARCH_ARM_5TE)
 DEFINE_FLAG(bool, use_vfp, false, "Use vfp instructions if supported");
 DEFINE_FLAG(bool, use_neon, false, "Use neon instructions if supported");
-DEFINE_FLAG(bool, use_integer_division, false,
+DEFINE_FLAG(bool,
+            use_integer_division,
+            false,
             "Use integer division instruction if supported");
 #elif defined(TARGET_ARCH_ARM_6)
 DEFINE_FLAG(bool, use_vfp, true, "Use vfp instructions if supported");
 DEFINE_FLAG(bool, use_neon, false, "Use neon instructions if supported");
-DEFINE_FLAG(bool, use_integer_division, false,
+DEFINE_FLAG(bool,
+            use_integer_division,
+            false,
             "Use integer division instruction if supported");
 #else
 DEFINE_FLAG(bool, use_vfp, true, "Use vfp instructions if supported");
 DEFINE_FLAG(bool, use_neon, true, "Use neon instructions if supported");
-DEFINE_FLAG(bool, use_integer_division, true,
+DEFINE_FLAG(bool,
+            use_integer_division,
+            true,
             "Use integer division instruction if supported");
 #endif
 
@@ -93,19 +101,19 @@ void CPU::FlushICache(uword start, uword size) {
     return;
   }
 
-  // ARM recommends using the gcc intrinsic __clear_cache on Linux, and the
-  // library call cacheflush from unistd.h on Android:
-  // blogs.arm.com/software-enablement/141-caches-and-self-modifying-code/
-  #if defined(__linux__) && !defined(ANDROID)
-    extern void __clear_cache(char*, char*);
-    char* beg = reinterpret_cast<char*>(start);
-    char* end = reinterpret_cast<char*>(start + size);
-    ::__clear_cache(beg, end);
-  #elif defined(ANDROID)
-    cacheflush(start, start + size, 0);
-  #else
-    #error FlushICache only tested/supported on Linux and Android
-  #endif
+// ARM recommends using the gcc intrinsic __clear_cache on Linux, and the
+// library call cacheflush from unistd.h on Android:
+// blogs.arm.com/software-enablement/141-caches-and-self-modifying-code/
+#if defined(__linux__) && !defined(ANDROID)
+  extern void __clear_cache(char*, char*);
+  char* beg = reinterpret_cast<char*>(start);
+  char* end = reinterpret_cast<char*>(start + size);
+  ::__clear_cache(beg, end);
+#elif defined(ANDROID)
+  cacheflush(start, start + size, 0);
+#else
+#error FlushICache only tested/supported on Linux and Android
+#endif
 #endif
 }
 
@@ -113,9 +121,9 @@ void CPU::FlushICache(uword start, uword size) {
 const char* CPU::Id() {
   return
 #if defined(USING_SIMULATOR)
-  "sim"
+      "sim"
 #endif  // defined(USING_SIMULATOR)
-  "arm";
+      "arm";
 }
 
 
@@ -197,24 +205,26 @@ void HostCPUFeatures::InitOnce() {
   // - Qualcomm Krait CPUs (QCT APQ8064) in Nexus 4 and 7 incorrectly report
   //   that they lack integer division.
   // - Marvell Armada 370/XP incorrectly reports that it has integer division.
+  // - The Pixel lacks integer division even though ARMv8 requires it in A32.
   bool is_krait = CpuInfo::FieldContains(kCpuInfoHardware, "QCT APQ8064");
   bool is_armada_370xp =
       CpuInfo::FieldContains(kCpuInfoHardware, "Marvell Armada 370/XP");
+  bool is_pixel = CpuInfo::FieldContains(kCpuInfoHardware, "MSM8996pro");
   if (is_krait) {
     integer_division_supported_ = FLAG_use_integer_division;
-  } else if (!is_armada_370xp) {
+  } else if (is_armada_370xp || is_pixel) {
+    integer_division_supported_ = false;
+  } else {
     integer_division_supported_ =
         (CpuInfo::FieldContains(kCpuInfoFeatures, "idiva") || is_arm64) &&
         FLAG_use_integer_division;
-  } else {
-    integer_division_supported_ = false;
   }
   neon_supported_ =
       (CpuInfo::FieldContains(kCpuInfoFeatures, "neon") || is_arm64) &&
       FLAG_use_vfp && FLAG_use_neon;
 
-  // Use the cross-compiler's predefined macros to determine whether we should
-  // use the hard or soft float ABI.
+// Use the cross-compiler's predefined macros to determine whether we should
+// use the hard or soft float ABI.
 #if defined(__ARM_PCS_VFP)
   hardfp_supported_ = true;
 #else

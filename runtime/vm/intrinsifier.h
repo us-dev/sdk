@@ -3,8 +3,8 @@
 // BSD-style license that can be found in the LICENSE file.
 // Class for intrinsifying functions.
 
-#ifndef VM_INTRINSIFIER_H_
-#define VM_INTRINSIFIER_H_
+#ifndef RUNTIME_VM_INTRINSIFIER_H_
+#define RUNTIME_VM_INTRINSIFIER_H_
 
 #include "vm/allocation.h"
 #include "vm/method_recognizer.h"
@@ -38,7 +38,7 @@ class Intrinsifier : public AllStatic {
  private:
   static bool CanIntrinsify(const Function& function);
 
-#define DECLARE_FUNCTION(class_name, function_name, enum_name, type, fp) \
+#define DECLARE_FUNCTION(class_name, function_name, enum_name, type, fp)       \
   static void enum_name(Assembler* assembler);
 
   ALL_INTRINSICS_LIST(DECLARE_FUNCTION)
@@ -50,7 +50,7 @@ class Intrinsifier : public AllStatic {
 #undef DECLARE_FUNCTION
 
 #if !defined(TARGET_ARCH_DBC)
-#define DECLARE_FUNCTION(class_name, function_name, enum_name, type, fp) \
+#define DECLARE_FUNCTION(class_name, function_name, enum_name, type, fp)       \
   static bool Build_##enum_name(FlowGraph* flow_graph);
 
   GRAPH_INTRINSICS_LIST(DECLARE_FUNCTION)
@@ -61,4 +61,4 @@ class Intrinsifier : public AllStatic {
 
 }  // namespace dart
 
-#endif  // VM_INTRINSIFIER_H_
+#endif  // RUNTIME_VM_INTRINSIFIER_H_

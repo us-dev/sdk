@@ -58,6 +58,56 @@ import 'format.dart' as generated;
 const informative = null;
 
 /**
+ * Information about a resolved unit.
+ */
+@TopLevel('ADRU')
+abstract class AnalysisDriverResolvedUnit extends base.SummaryClass {
+  factory AnalysisDriverResolvedUnit.fromBuffer(List<int> buffer) =>
+      generated.readAnalysisDriverResolvedUnit(buffer);
+
+  /**
+   * The full list of analysis errors, both syntactic and semantic.
+   */
+  @Id(0)
+  List<AnalysisDriverUnitError> get errors;
+}
+
+/**
+ * Information about an error in a resolved unit.
+ */
+abstract class AnalysisDriverUnitError extends base.SummaryClass {
+  /**
+   * The optional correction hint for the error.
+   */
+  @Id(4)
+  String get correction;
+
+  /**
+   * The length of the error in the file.
+   */
+  @Id(1)
+  int get length;
+
+  /**
+   * The message of the error.
+   */
+  @Id(3)
+  String get message;
+
+  /**
+   * The offset from the beginning of the file.
+   */
+  @Id(0)
+  int get offset;
+
+  /**
+   * The unique name of the error code.
+   */
+  @Id(2)
+  String get uniqueName;
+}
+
+/**
  * Information about an element code range.
  */
 abstract class CodeRange extends base.SummaryClass {
@@ -2597,6 +2647,14 @@ abstract class UnlinkedUnit extends base.SummaryClass {
       generated.readUnlinkedUnit(buffer);
 
   /**
+   * MD5 hash of the non-informative fields of the [UnlinkedUnit] (not
+   * including this one) as 16 unsigned 8-bit integer values.  This can be used
+   * to identify when the API of a unit may have changed.
+   */
+  @Id(19)
+  List<int> get apiSignature;
+
+  /**
    * Classes declared in the compilation unit.
    */
   @Id(2)
@@ -2643,6 +2701,12 @@ abstract class UnlinkedUnit extends base.SummaryClass {
    */
   @Id(5)
   List<UnlinkedImport> get imports;
+
+  /**
+   * Indicates whether the unit contains a "part of" declaration.
+   */
+  @Id(18)
+  bool get isPartOf;
 
   /**
    * Annotations for the library declaration, or the empty list if there is no

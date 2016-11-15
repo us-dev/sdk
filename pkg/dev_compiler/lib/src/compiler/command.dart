@@ -15,7 +15,7 @@ import 'compiler.dart' show BuildUnit, CompilerOptions, ModuleCompiler;
 import 'module_builder.dart';
 
 final ArgParser _argParser = () {
-  var argParser = new ArgParser()
+  var argParser = new ArgParser(allowTrailingOptions: true)
     ..addFlag('help', abbr: 'h', help: 'Display this message.')
     ..addOption('out',
         abbr: 'o', allowMultiple: true, help: 'Output file (required).')
@@ -91,13 +91,13 @@ bool _changed(List<int> list1, List<int> list2) {
 }
 
 void _compile(ArgResults argResults, void printFn(Object obj)) {
-  var compiler =
-      new ModuleCompiler(new AnalyzerOptions.fromArguments(argResults));
-  var compilerOpts = new CompilerOptions.fromArguments(argResults);
   if (argResults['help']) {
     printFn(_usageMessage);
     return;
   }
+  var compiler =
+      new ModuleCompiler(new AnalyzerOptions.fromArguments(argResults));
+  var compilerOpts = new CompilerOptions.fromArguments(argResults);
   var outPaths = argResults['out'] as List<String>;
   var moduleFormats = parseModuleFormatOption(argResults);
   bool singleOutFile = argResults['single-out-file'];
@@ -154,16 +154,23 @@ void _compile(ArgResults argResults, void printFn(Object obj)) {
 
   // Write JS file, as well as source map and summary (if requested).
   for (var i = 0; i < outPaths.length; i++) {
-    var outPath = outPaths[i];
-    module.writeCodeSync(moduleFormats[i], singleOutFile, outPath);
-    if (module.summaryBytes != null) {
-      var summaryPath =
-          path.withoutExtension(outPath) + '.${compilerOpts.summaryExtension}';
+    module.writeCodeSync(moduleFormats[i], outPaths[i],
+        singleOutFile: singleOutFile);
+  }
+  if (module.summaryBytes != null) {
+    var summaryPaths = compilerOpts.summaryOutPath != null
+        ? [compilerOpts.summaryOutPath]
+        : outPaths.map((p) =>
+            '${path.withoutExtension(p)}.${compilerOpts.summaryExtension}');
+
+    // place next to every compiled module
+    for (var summaryPath in summaryPaths) {
       // Only overwrite if summary changed.  This plays better with timestamp
       // based build systems.
       var file = new File(summaryPath);
       if (!file.existsSync() ||
           _changed(file.readAsBytesSync(), module.summaryBytes)) {
+        if (!file.parent.existsSync()) file.parent.createSync(recursive: true);
         file.writeAsBytesSync(module.summaryBytes);
       }
     }

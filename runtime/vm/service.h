@@ -2,8 +2,8 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-#ifndef VM_SERVICE_H_
-#define VM_SERVICE_H_
+#ifndef RUNTIME_VM_SERVICE_H_
+#define RUNTIME_VM_SERVICE_H_
 
 #include "include/dart_tools_api.h"
 
@@ -12,6 +12,9 @@
 #include "vm/os_thread.h"
 
 namespace dart {
+
+#define SERVICE_PROTOCOL_MAJOR_VERSION 3
+#define SERVICE_PROTOCOL_MINOR_VERSION 5
 
 class Array;
 class EmbedderServiceHandler;
@@ -48,13 +51,9 @@ class RingServiceIdZone : public ServiceIdZone {
   // Returned string will be zone allocated.
   virtual char* GetServiceId(const Object& obj);
 
-  void set_policy(ObjectIdRing::IdPolicy policy) {
-    policy_ = policy;
-  }
+  void set_policy(ObjectIdRing::IdPolicy policy) { policy_ = policy; }
 
-  ObjectIdRing::IdPolicy policy() const {
-    return policy_;
-  }
+  ObjectIdRing::IdPolicy policy() const { return policy_; }
 
  private:
   ObjectIdRing* ring_;
@@ -96,10 +95,9 @@ class Service : public AllStatic {
       Dart_ServiceRequestCallback callback,
       void* user_data);
 
-  static void RegisterRootEmbedderCallback(
-      const char* name,
-      Dart_ServiceRequestCallback callback,
-      void* user_data);
+  static void RegisterRootEmbedderCallback(const char* name,
+                                           Dart_ServiceRequestCallback callback,
+                                           void* user_data);
 
   static void SetEmbedderStreamCallbacks(
       Dart_ServiceStreamListenCallback listen_callback,
@@ -218,4 +216,4 @@ class Service : public AllStatic {
 
 }  // namespace dart
 
-#endif  // VM_SERVICE_H_
+#endif  // RUNTIME_VM_SERVICE_H_

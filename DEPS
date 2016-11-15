@@ -37,7 +37,7 @@ vars = {
 
   # Revisions of /third_party/* dependencies.
   "args_tag": "@0.13.5",
-  "async_tag": "@1.11.2",
+  "async_tag": "@1.11.3",
   "barback-0.13.0_rev": "@34853",
   "barback-0.14.0_rev": "@36398",
   "barback-0.14.1_rev": "@38525",
@@ -50,7 +50,7 @@ vars = {
   "chrome_rev" : "@19997",
   "cli_util_tag" : "@0.0.1+3",
   "code_transformers_tag": "@v0.4.2+3",
-  "collection_tag": "@1.9.1",
+  "collection_tag": "@1.10.1",
   "convert_tag": "@2.0.1",
   "crypto_tag" : "@2.0.1",
   "csslib_tag" : "@0.13.2",
@@ -61,7 +61,7 @@ vars = {
   "fixnum_tag": "@0.10.5",
   "func_tag": "@0.1.0",
   "glob_tag": "@1.1.3",
-  "html_tag" : "@0.13.0",
+  "html_tag" : "@0.13.1",
   "http_multi_server_tag" : "@2.0.2",
   "http_parser_tag" : "@3.0.2",
   "http_tag" : "@0.11.3+9",
@@ -72,7 +72,7 @@ vars = {
   "isolate_tag": "@0.2.3",
   "jinja2_rev": "@2222b31554f03e62600cd7e383376a7c187967a1",
   "json_rpc_2_tag": "@2.0.2",
-  "kernel_rev": "@1906e420431656d351a9f4ee9a36b8ca9a4da1db",
+  "kernel_rev": "@11edd6208940d227dc0b2cf87a6518d2508c0858",
   "linter_tag": "@0.1.28",
   "logging_tag": "@0.11.3+1",
   "markdown_tag": "@0.11.0",
@@ -104,8 +104,8 @@ vars = {
   "smoke_tag" : "@v0.3.6+2",
   "source_map_stack_trace_tag": "@1.1.3",
   "source_maps-0.9.4_rev": "@38524",
-  "source_maps_tag": "@0.10.1+1",
-  "source_span_tag": "@1.2.3",
+  "source_maps_tag": "@0.10.1+2",
+  "source_span_tag": "@1.2.4",
   "stack_trace_tag": "@1.6.6",
   "stream_channel_tag": "@1.5.0",
   "string_scanner_tag": "@1.0.0",
@@ -121,7 +121,7 @@ vars = {
   "WebCore_rev": "@a86fe28efadcfc781f836037a80f27e22a5dad17",
   "when_tag": "@0.2.0+2",
   "which_tag": "@0.1.3+1",
-  "yaml_tag": "@2.1.10",
+  "yaml_tag": "@2.1.12",
   "zlib_rev": "@c3d0a6190f2f8c924a05ab6cc97b8f975bddd33f",
 }
 
@@ -554,6 +554,20 @@ hooks = [
       "-s",
       Var('dart_root') + "/third_party/clang.tar.gz.sha1",
     ],
+  },
+  {
+    # Pull Debian wheezy sysroot for i386 Linux
+    'name': 'sysroot_i386',
+    'pattern': '.',
+    'action': ['python', 'sdk/build/linux/sysroot_scripts/install-sysroot.py',
+               '--running-as-hook', '--arch', 'i386'],
+  },
+  {
+    # Pull Debian wheezy sysroot for amd64 Linux
+    'name': 'sysroot_amd64',
+    'pattern': '.',
+    'action': ['python', 'sdk/build/linux/sysroot_scripts/install-sysroot.py',
+               '--running-as-hook', '--arch', 'amd64'],
   },
   {
     # Pull clang if needed or requested via GYP_DEFINES.
