@@ -43,6 +43,16 @@ DEFINE_NATIVE_ENTRY(Developer_inspect, 1) {
   return inspectee.raw();
 }
 
+DEFINE_NATIVE_ENTRY(Developer_getObjectId, 1) {
+  GET_NATIVE_ARGUMENT(Instance, object, arguments->NativeArgAt(0));
+  String* s = null;
+#ifndef PRODUCT
+  if (FLAG_support_service) {
+    s = Service::GetObjectId(isolate, object);
+  }
+#endif  // !PRODUCT
+  return s; 
+}
 
 DEFINE_NATIVE_ENTRY(Developer_log, 8) {
 #if defined(PRODUCT)

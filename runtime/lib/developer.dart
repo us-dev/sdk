@@ -10,6 +10,8 @@ import 'dart:_internal';
 
 @patch Object inspect(Object object) native "Developer_inspect";
 
+@patch String getObjectId(Object obj) native "Developer_getObjectId";
+
 @patch void log(String message,
                 {DateTime time,
                  int sequenceNumber,

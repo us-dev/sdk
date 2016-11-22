@@ -3317,6 +3317,10 @@ void Service::SendInspectEvent(Isolate* isolate, const Object& inspectee) {
   Service::HandleEvent(&event);
 }
 
+  char* Service::GetObjectId(Isolate* isolate, const Object& object){
+    RingServiceIdZone r = js.id_zone();// ?
+    return r.GetServiceId(object); 
+  }
 
 void Service::SendEmbedderEvent(Isolate* isolate,
                                 const char* stream_id,

@@ -41,6 +41,10 @@ external bool debugger({bool when: true, String message});
 /// Debuggers may open an inspector on the object. Returns the argument.
 external Object inspect(Object object);
 
+// Get an object id for the object
+external String getObjectId(Object object);
+
+
 /// Emit a log event.
 /// [message] is the log message.
 /// [time]  (optional) is the timestamp.
