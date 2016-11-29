@@ -54,6 +54,41 @@ DEFINE_NATIVE_ENTRY(Developer_getObjectId, 1) {
   return s; 
 }
 
+DEFINE_NATIVE_ENTRY(Developer_getIsolateId, 1) {
+  GET_NATIVE_ARGUMENT(Instance, isolate, arguments->NativeArgAt(0));
+  String* s = null;
+#ifndef PRODUCT
+  if (FLAG_support_service) {
+    s = Service::GetIsolateId(isolate);
+  }
+#endif  // !PRODUCT
+  return s; 
+}
+
+DEFINE_NATIVE_ENTRY(Developer_getObject, 1) {
+  GET_NATIVE_ARGUMENT(String, objectId, arguments->NativeArgAt(0));
+  String* m = null; // Map!!!
+#ifndef PRODUCT
+  if (FLAG_support_service) {
+    m = Service::GetObject(isolate, object); // no it prints itto json somewhere
+  }
+#endif  // !PRODUCT
+  return m; 
+}
+
+DEFINE_NATIVE_ENTRY(Developer_evaluate, 3) {
+  GET_NATIVE_ARGUMENT(String, isolateId, arguments->NativeArgAt(0));
+  GET_NATIVE_ARGUMENT(String, targetId, arguments->NativeArgAt(1));
+  GET_NATIVE_ARGUMENT(String, expression, arguments->NativeArgAt(2));
+  String* m = null; // Map!!!
+#ifndef PRODUCT
+  if (FLAG_support_service) {
+    m = Service::Evaluate(isolate); // no it prints itto json somewhere
+  }
+#endif  // !PRODUCT
+  return m; 
+}
+
 DEFINE_NATIVE_ENTRY(Developer_log, 8) {
 #if defined(PRODUCT)
   return Object::null();

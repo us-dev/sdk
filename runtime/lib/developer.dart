@@ -10,7 +10,13 @@ import 'dart:_internal';
 
 @patch Object inspect(Object object) native "Developer_inspect";
 
-@patch String getObjectId(Object obj) native "Developer_getObjectId";
+@patch Future<String> getObjectId(Object obj) native "Developer_getObjectId";
+
+@patch Future<String> getIsolateId(Isolate isolate) native "Developer_getIsolateId";
+
+@patch Future<String> getObject(String objectId) native "Developer_getObject";
+
+@patch Future<String> evaluate(String isolateId, String targetId, String expression) native "Developer_evaluate";
 
 @patch void log(String message,
                 {DateTime time,

@@ -1313,6 +1313,9 @@ static const MethodParameter* get_isolate_params[] = {
     ISOLATE_PARAMETER, NULL,
 };
 
+static const MethodParameter* get_isolate_id_params[] = {
+    ISOLATE_PARAMETER, NULL,
+};
 
 static bool GetIsolate(Thread* thread, JSONStream* js) {
   thread->isolate()->PrintJSON(js, false);
@@ -3317,9 +3320,15 @@ void Service::SendInspectEvent(Isolate* isolate, const Object& inspectee) {
   Service::HandleEvent(&event);
 }
 
-  char* Service::GetObjectId(Isolate* isolate, const Object& object){
-    RingServiceIdZone r = js.id_zone();// ?
+char* Service::GetObjectId(const Object& object){
+  // But we also need to generate an event and then get the other end to do this work
+    RingServiceIdZone r = js.id_zone();
     return r.GetServiceId(object); 
+  }
+
+char* Service::GetIsolateId(Isolate* isolate){
+    RingServiceIdZone r = js.id_zone();// ?
+    return r.GetServiceId(isolate); 
   }
 
 void Service::SendEmbedderEvent(Isolate* isolate,
@@ -3576,6 +3585,11 @@ static bool RespondWithMalformedObject(Thread* thread, JSONStream* js) {
 
 
 static const MethodParameter* get_object_params[] = {
+    RUNNABLE_ISOLATE_PARAMETER, new UIntParameter("offset", false),
+    new UIntParameter("count", false), NULL,
+};
+
+static const MethodParameter* get_object_id_params[] = {
     RUNNABLE_ISOLATE_PARAMETER, new UIntParameter("offset", false),
     new UIntParameter("count", false), NULL,
 };
@@ -4007,12 +4021,16 @@ static const ServiceMethodDescriptor service_methods_[] = {
     get_instances_params },
   { "getIsolate", GetIsolate,
     get_isolate_params },
+  { "getIsolateId", GetIsolateId,
+    get_isolate_id_params },
   { "_getIsolateMetric", GetIsolateMetric,
     get_isolate_metric_params },
   { "_getIsolateMetricList", GetIsolateMetricList,
     get_isolate_metric_list_params },
   { "getObject", GetObject,
     get_object_params },
+  { "getObjectId", GetObjectId,
+    get_object_id_params },
   { "_getObjectStore", GetObjectStore,
     get_object_store_params },
   { "_getObjectByAddress", GetObjectByAddress,

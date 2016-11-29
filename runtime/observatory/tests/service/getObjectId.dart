@@ -4,20 +4,25 @@
 
 import "package:expect/expect.dart";
 import "package:developer.dart";
-import 'package:vm_service_client/vm_service_client.dart';
 import 'test_helper.dart';
 
 var tests = [
-  (Isolate isolate) =>
-  Scope scope = isolate.scope;
-  var o = new ObjectIdTest();
-  var sub = new ObjectIdTest();
-  o.subObject = sub;
+  (Isolate isolate){
+    var o = new ObjectIdTest();
+    var sub = new ObjectIdTest();
+    o.subObject = sub;
+    String oid = getObjectId(o);
+    String subId = getObjectId(sub);
+    String isolateId = getIsolateId(isolate);
+    Map objectDescriptor = await getObject(isolateId, oid);
+    expect(objectDescriptor['class']['name'] == 'ObjectIdTest');
 
-  isolate.vm.invokeRpc('getObjectId', { 'text': 'hello'}).then((result) {
-    expect(result['type'], equals('_EchoResponse'));
-    expect(result['text'], equals('hello'));
-  })
+    expect(evaluate(oid, 'i')['valueAsString'] == '42');
+    expect(evaluate(oid, 'f')['valueAsString'] == '91');
+    expect(evaluate(oid, 's')['valueAsString'] == 'We ID under 42');
+    expect(evaluate(oid, 'i')['valueAsString'] == '42');
+    expect(evaluate(oid, 'subobject')['id'] == subId);
+  }
 ];
 
 
@@ -33,29 +38,5 @@ class ObjectIdTest {
 main(args) => runIsolateTests(args, tests); // or is it runVMTests?
 
 main() {
-
-  VMServiceClient client = VMServiceClient.connect(url); // ok, how do we do this?
-  VM vm = await client.getVM();
-  VMIsolate isolate = vm.isolates.first;
-  var id = getObjectId(o);
-  var cid = getObjectId(ObjectIdTest);
-  Map m = {
-    'type': 'Instance',
-    'id':id,
-    'class': {
-      'type': 'Class',
-      'id': cid,
-      'name': 'ObjectIdTest'
-    }
-  };
-  
-  VMInstanceRef oRef = new VMInstanceRef(scope, m);
-  
-  VMObject oMirror = oRef.load();
-  VMClassRef cRef = oMirror.klass;
-  VMClass cMirror = await cRef.load();
-  expect(cMirror.name = 'ObjectIdTest');
-  Map<String, VMFieldRef> fs = cMirror.fields;
-  VMFieldRef idI = fs['i']);
-  expect(idI = 42);
+  runIsolateTests(args, tests);
 }

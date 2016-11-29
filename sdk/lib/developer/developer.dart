@@ -38,11 +38,22 @@ external bool debugger({bool when: true, String message});
 
 /// Send a reference to [object] to any attached debuggers.
 ///
+
+///
+external Future<Map<String, String>> evaluate(String isolateId, String targetId, String expression);
+
+/// Get an object id for the isolate
+external Future<String> getIsolateId(Isolate isolate);
+
+/// Get a map describing the object describing objectId
+external Future<Map<String, String>> getObject(String isolateId, String objectId);
+
+/// Get an object id for the object
+external Future<String> getObjectId(Object object);
+
+
 /// Debuggers may open an inspector on the object. Returns the argument.
 external Object inspect(Object object);
-
-// Get an object id for the object
-external String getObjectId(Object object);
 
 
 /// Emit a log event.
