@@ -32,15 +32,29 @@ DEFINE_NATIVE_ENTRY(Developer_debugger, 2) {
   return when.raw();
 }
 
-
-DEFINE_NATIVE_ENTRY(Developer_inspect, 1) {
-  GET_NATIVE_ARGUMENT(Instance, inspectee, arguments->NativeArgAt(0));
+  
+DEFINE_NATIVE_ENTRY(Developer_evaluate, 3) {
+  GET_NATIVE_ARGUMENT(String, isolateId, arguments->NativeArgAt(0));
+  GET_NATIVE_ARGUMENT(String, targetId, arguments->NativeArgAt(1));
+  GET_NATIVE_ARGUMENT(String, expression, arguments->NativeArgAt(2));
+  String* m = null; // Map!!!
 #ifndef PRODUCT
   if (FLAG_support_service) {
-    Service::SendInspectEvent(isolate, inspectee);
+    m = Service::Evaluate(isolate); // no it prints itto json somewhere
   }
 #endif  // !PRODUCT
-  return inspectee.raw();
+  return m; 
+}
+  
+DEFINE_NATIVE_ENTRY(Developer_getIsolateId, 1) {
+  GET_NATIVE_ARGUMENT(Instance, isolate, arguments->NativeArgAt(0));
+  String* s = null;
+#ifndef PRODUCT
+  if (FLAG_support_service) {
+    s = Service::GetIsolateId(isolate);
+  }
+#endif  // !PRODUCT
+  return s; 
 }
 
 DEFINE_NATIVE_ENTRY(Developer_getObjectId, 1) {
@@ -49,17 +63,6 @@ DEFINE_NATIVE_ENTRY(Developer_getObjectId, 1) {
 #ifndef PRODUCT
   if (FLAG_support_service) {
     s = Service::GetObjectId(isolate, object);
-  }
-#endif  // !PRODUCT
-  return s; 
-}
-
-DEFINE_NATIVE_ENTRY(Developer_getIsolateId, 1) {
-  GET_NATIVE_ARGUMENT(Instance, isolate, arguments->NativeArgAt(0));
-  String* s = null;
-#ifndef PRODUCT
-  if (FLAG_support_service) {
-    s = Service::GetIsolateId(isolate);
   }
 #endif  // !PRODUCT
   return s; 
@@ -75,18 +78,15 @@ DEFINE_NATIVE_ENTRY(Developer_getObject, 1) {
 #endif  // !PRODUCT
   return m; 
 }
-
-DEFINE_NATIVE_ENTRY(Developer_evaluate, 3) {
-  GET_NATIVE_ARGUMENT(String, isolateId, arguments->NativeArgAt(0));
-  GET_NATIVE_ARGUMENT(String, targetId, arguments->NativeArgAt(1));
-  GET_NATIVE_ARGUMENT(String, expression, arguments->NativeArgAt(2));
-  String* m = null; // Map!!!
+  
+DEFINE_NATIVE_ENTRY(Developer_inspect, 1) {
+  GET_NATIVE_ARGUMENT(Instance, inspectee, arguments->NativeArgAt(0));
 #ifndef PRODUCT
   if (FLAG_support_service) {
-    m = Service::Evaluate(isolate); // no it prints itto json somewhere
+    Service::SendInspectEvent(isolate, inspectee);
   }
 #endif  // !PRODUCT
-  return m; 
+  return inspectee.raw();
 }
 
 DEFINE_NATIVE_ENTRY(Developer_log, 8) {

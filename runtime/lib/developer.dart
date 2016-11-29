@@ -8,15 +8,15 @@ import 'dart:_internal';
 @patch bool debugger({bool when: true,
                      String message}) native "Developer_debugger";
 
-@patch Object inspect(Object object) native "Developer_inspect";
-
-@patch Future<String> getObjectId(Object obj) native "Developer_getObjectId";
+@patch Future<String> evaluate(String isolateId, String targetId, String expression) native "Developer_evaluate";
 
 @patch Future<String> getIsolateId(Isolate isolate) native "Developer_getIsolateId";
 
+@patch Future<String> getObjectId(Object obj) native "Developer_getObjectId";
+
 @patch Future<String> getObject(String objectId) native "Developer_getObject";
 
-@patch Future<String> evaluate(String isolateId, String targetId, String expression) native "Developer_evaluate";
+@patch Object inspect(Object object) native "Developer_inspect";
 
 @patch void log(String message,
                 {DateTime time,
