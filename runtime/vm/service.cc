@@ -3246,12 +3246,21 @@ static bool GetHeapMap(Thread* thread, JSONStream* js) {
   return true;
 }
 
-
 static const MethodParameter* request_heap_snapshot_params[] = {
     RUNNABLE_ISOLATE_PARAMETER,
     new BoolParameter("collectGarbage", false /* not required */), NULL,
 };
 
+char* Service::GetIsolateId(Isolate* isolate){
+    RingServiceIdZone r = js.id_zone();// ?
+    return r.GetServiceId(isolate); 
+}
+
+char* Service::GetObjectId(const Object& object){
+  // But we also need to generate an event and then get the other end to do this work
+    RingServiceIdZone r = js.id_zone();
+    return r.GetServiceId(object); 
+}
 
 static bool RequestHeapSnapshot(Thread* thread, JSONStream* js) {
   const bool collect_garbage =
@@ -3319,17 +3328,6 @@ void Service::SendInspectEvent(Isolate* isolate, const Object& inspectee) {
   event.set_inspectee(&inspectee);
   Service::HandleEvent(&event);
 }
-
-char* Service::GetObjectId(const Object& object){
-  // But we also need to generate an event and then get the other end to do this work
-    RingServiceIdZone r = js.id_zone();
-    return r.GetServiceId(object); 
-  }
-
-char* Service::GetIsolateId(Isolate* isolate){
-    RingServiceIdZone r = js.id_zone();// ?
-    return r.GetServiceId(isolate); 
-  }
 
 void Service::SendEmbedderEvent(Isolate* isolate,
                                 const char* stream_id,
