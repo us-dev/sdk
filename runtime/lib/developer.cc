@@ -31,20 +31,6 @@ DEFINE_NATIVE_ENTRY(Developer_debugger, 2) {
   }
   return when.raw();
 }
-
-  
-DEFINE_NATIVE_ENTRY(Developer_evaluate, 3) {
-  GET_NATIVE_ARGUMENT(String, isolateId, arguments->NativeArgAt(0));
-  GET_NATIVE_ARGUMENT(String, targetId, arguments->NativeArgAt(1));
-  GET_NATIVE_ARGUMENT(String, expression, arguments->NativeArgAt(2));
-  String* m = null; // Map!!!
-#ifndef PRODUCT
-  if (FLAG_support_service) {
-    m = Service::Evaluate(isolate); // no it prints itto json somewhere
-  }
-#endif  // !PRODUCT
-  return m; 
-}
   
 DEFINE_NATIVE_ENTRY(Developer_getIsolateId, 1) {
   GET_NATIVE_ARGUMENT(Instance, isolate, arguments->NativeArgAt(0));
@@ -57,23 +43,12 @@ DEFINE_NATIVE_ENTRY(Developer_getIsolateId, 1) {
   return s; 
 }
 
-DEFINE_NATIVE_ENTRY(Developer_getObjectId, 1) {
-  GET_NATIVE_ARGUMENT(Instance, object, arguments->NativeArgAt(0));
-  String* s = null;
-#ifndef PRODUCT
-  if (FLAG_support_service) {
-    s = Service::GetObjectId(isolate, object);
-  }
-#endif  // !PRODUCT
-  return s; 
-}
-
-DEFINE_NATIVE_ENTRY(Developer_getObject, 1) {
+DEFINE_NATIVE_ENTRY(Developer_getServiceObjectDescriptor, 1) {
   GET_NATIVE_ARGUMENT(String, objectId, arguments->NativeArgAt(0));
   String* m = null; // Map!!!
 #ifndef PRODUCT
   if (FLAG_support_service) {
-    m = Service::GetObject(isolate, object); // no it prints itto json somewhere
+    m = Service::GetServiceObjectDescriptor(object); // no it prints itto json somewhere
   }
 #endif  // !PRODUCT
   return m; 

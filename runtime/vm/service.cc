@@ -1313,10 +1313,6 @@ static const MethodParameter* get_isolate_params[] = {
     ISOLATE_PARAMETER, NULL,
 };
 
-static const MethodParameter* get_isolate_id_params[] = {
-    ISOLATE_PARAMETER, NULL,
-};
-
 static bool GetIsolate(Thread* thread, JSONStream* js) {
   thread->isolate()->PrintJSON(js, false);
   return true;
@@ -3256,10 +3252,9 @@ char* Service::GetIsolateId(Isolate* isolate){
     return r.GetServiceId(isolate); 
 }
 
-char* Service::GetObjectId(const Object& object){
-  // But we also need to generate an event and then get the other end to do this work
-    RingServiceIdZone r = js.id_zone();
-    return r.GetServiceId(object); 
+void Service::GetServiceObjectDescriptor(const Object& object){
+  RingServiceIdZone r = js.id_zone();
+  r.GetServiceId(object);
 }
 
 static bool RequestHeapSnapshot(Thread* thread, JSONStream* js) {
@@ -3587,7 +3582,7 @@ static const MethodParameter* get_object_params[] = {
     new UIntParameter("count", false), NULL,
 };
 
-static const MethodParameter* get_object_id_params[] = {
+static const MethodParameter* get_service_object_descriptor_params[] = {
     RUNNABLE_ISOLATE_PARAMETER, new UIntParameter("offset", false),
     new UIntParameter("count", false), NULL,
 };
@@ -4019,16 +4014,12 @@ static const ServiceMethodDescriptor service_methods_[] = {
     get_instances_params },
   { "getIsolate", GetIsolate,
     get_isolate_params },
-  { "getIsolateId", GetIsolateId,
-    get_isolate_id_params },
   { "_getIsolateMetric", GetIsolateMetric,
     get_isolate_metric_params },
   { "_getIsolateMetricList", GetIsolateMetricList,
     get_isolate_metric_list_params },
   { "getObject", GetObject,
     get_object_params },
-  { "getObjectId", GetObjectId,
-    get_object_id_params },
   { "_getObjectStore", GetObjectStore,
     get_object_store_params },
   { "_getObjectByAddress", GetObjectByAddress,
@@ -4043,6 +4034,8 @@ static const ServiceMethodDescriptor service_methods_[] = {
     get_retained_size_params },
   { "_getRetainingPath", GetRetainingPath,
     get_retaining_path_params },
+  { "getServiceObjectDescriptor", GetServiceObjectDescriptor,
+    get_service_object_descriptor_params },
   { "getSourceReport", GetSourceReport,
     get_source_report_params },
   { "getStack", GetStack,
