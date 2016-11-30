@@ -1314,7 +1314,7 @@ class CodeGenerator extends GeneralizingAstVisitor
       jsMethods.add(new JS.Method(
           _propertyName('constructor'),
           js.call('function(...args) { return this.new.apply(this, args); }')
-          as JS.Fun));
+              as JS.Fun));
     } else if (ctors.isEmpty) {
       jsMethods.add(_emitImplicitConstructor(node, fields, virtualFields));
     }
@@ -3967,7 +3967,7 @@ class CodeGenerator extends GeneralizingAstVisitor
           new JS.Method(
               access,
               js.call('function() { return #; }', _visitInitializer(node))
-              as JS.Fun,
+                  as JS.Fun,
               isGetter: true),
           node,
           _findAccessor(element, getter: true)));
@@ -4527,7 +4527,7 @@ class CodeGenerator extends GeneralizingAstVisitor
       }
       result = new PrefixedIdentifier(
           _bindValue(scope, 'o', ident.prefix, context: context)
-          as SimpleIdentifier,
+              as SimpleIdentifier,
           ident.period,
           ident.identifier);
     } else {
@@ -5362,10 +5362,11 @@ class CodeGenerator extends GeneralizingAstVisitor
     return result is JS.Node ? annotate(result, node) : result;
   }
 
-  List/*<T>*/ _visitList/*<T extends AstNode>*/(Iterable/*<T>*/ nodes) {
+  // TODO(jmesserly): we should make sure this only returns JS AST nodes.
+  List/*<R>*/ _visitList/*<T extends AstNode, R>*/(Iterable/*<T>*/ nodes) {
     if (nodes == null) return null;
-    var result = /*<T>*/ [];
-    for (var node in nodes) result.add(_visit(node) as dynamic/*=T*/);
+    var result = /*<R>*/ [];
+    for (var node in nodes) result.add(_visit(node) as dynamic/*=R*/);
     return result;
   }
 

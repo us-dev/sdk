@@ -332,7 +332,6 @@ let _SplayTreeValueIterator = () => (_SplayTreeValueIterator = dart.constFn(coll
 let _SplayTreeNodeIterator = () => (_SplayTreeNodeIterator = dart.constFn(collection._SplayTreeNodeIterator$()))();
 let SplayTreeSet = () => (SplayTreeSet = dart.constFn(collection.SplayTreeSet$()))();
 let dynamicAnddynamicTodynamic = () => (dynamicAnddynamicTodynamic = dart.constFn(dart.functionType(dart.dynamic, [dart.dynamic, dart.dynamic])))();
-let MappedIterableOfString$dynamic = () => (MappedIterableOfString$dynamic = dart.constFn(_internal.MappedIterable$(core.String, dart.dynamic)))();
 let SinkOfObject = () => (SinkOfObject = dart.constFn(core.Sink$(core.Object)))();
 let Codec = () => (Codec = dart.constFn(convert.Codec$()))();
 let ComparableOfString = () => (ComparableOfString = dart.constFn(core.Comparable$(core.String)))();
@@ -400,7 +399,6 @@ let EventTovoid = () => (EventTovoid = dart.constFn(dart.functionType(dart.void,
 let FutureOfint = () => (FutureOfint = dart.constFn(async.Future$(core.int)))();
 let CompleterOfDatabase = () => (CompleterOfDatabase = dart.constFn(async.Completer$(indexed_db.Database)))();
 let ListOfEventTarget = () => (ListOfEventTarget = dart.constFn(core.List$(html.EventTarget)))();
-let RectangleOfint = () => (RectangleOfint = dart.constFn(math.Rectangle$(core.int)))();
 let IterableOfNode = () => (IterableOfNode = dart.constFn(core.Iterable$(html.Node)))();
 let ListOfNode = () => (ListOfNode = dart.constFn(core.List$(html.Node)))();
 let ListOfElement = () => (ListOfElement = dart.constFn(core.List$(html.Element)))();
@@ -672,6 +670,7 @@ let dynamicAnddynamicTobool = () => (dynamicAnddynamicTobool = dart.constFn(dart
 let IterableAndListTovoid = () => (IterableAndListTovoid = dart.constFn(dart.definiteFunctionType(dart.void, [core.Iterable, core.List])))();
 let _SplayTreeMapNodeTobool = () => (_SplayTreeMapNodeTobool = dart.constFn(dart.definiteFunctionType(core.bool, [collection._SplayTreeMapNode])))();
 let dynamicAndFnTodynamic = () => (dynamicAndFnTodynamic = dart.constFn(dart.definiteFunctionType(dart.dynamic, [dart.dynamic, dynamicAnddynamicTodynamic()])))();
+let EventSinkTo_ConverterStreamEventSink = () => (EventSinkTo_ConverterStreamEventSink = dart.constFn(dart.definiteFunctionType(convert._ConverterStreamEventSink, [async.EventSink])))();
 let Uint8ListAndintAndintTovoid = () => (Uint8ListAndintAndintTovoid = dart.constFn(dart.definiteFunctionType(dart.void, [typed_data.Uint8List, core.int, core.int])))();
 let StringAndFnTodynamic = () => (StringAndFnTodynamic = dart.constFn(dart.definiteFunctionType(dart.dynamic, [core.String, dynamicAnddynamicTodynamic()])))();
 let EventSinkOfStringTo_LineSplitterEventSink = () => (EventSinkOfStringTo_LineSplitterEventSink = dart.constFn(dart.definiteFunctionType(convert._LineSplitterEventSink, [EventSinkOfString()])))();
@@ -10488,7 +10487,7 @@ async.Stream$ = dart.generic(T => {
           let wrapper = new async._ControllerEventSinkWrapper(null);
           timeout = dart.fn(() => {
             wrapper[_sink] = controller;
-            zone.runUnaryGuarded(dart.dynamic, EventSinkOfT())(registeredOnTimeout, wrapper);
+            zone.runUnaryGuarded(dart.dynamic, async._ControllerEventSinkWrapper)(registeredOnTimeout, wrapper);
             wrapper[_sink] = null;
           }, VoidTovoid());
         }
@@ -13840,7 +13839,7 @@ _js_mirrors.JsVariableMirror = class JsVariableMirror extends _js_mirrors.JsMirr
     this[_symbol] = symbol;
     this[_name] = _js_mirrors.getName(symbol);
     this.type = _js_mirrors.reflectType(t);
-    this.metadata = ListOfInstanceMirror().unmodifiable(annotations[dartx.map](mirrors.InstanceMirror)(dart.fn(a => _js_mirrors.reflect(a), dynamicToInstanceMirror())));
+    this.metadata = ListOfInstanceMirror().unmodifiable(annotations[dartx.map](dart.dynamic)(dart.fn(a => _js_mirrors.reflect(a), dynamicToInstanceMirror())));
     this.isStatic = false;
     this.isFinal = false;
   }
@@ -28711,7 +28710,7 @@ convert._JsonMap = class _JsonMap extends core.Object {
   }
   get values() {
     if (dart.test(this[_isUpgraded])) return this[_upgradedMap][dartx.values];
-    return MappedIterableOfString$dynamic().new(this[_computeKeys](), dart.fn(each => this._get(each), dynamicTodynamic()));
+    return _internal.MappedIterable.new(this[_computeKeys](), dart.fn(each => this._get(each), dynamicTodynamic()));
   }
   _set(key, value) {
     if (dart.test(this[_isUpgraded])) {
@@ -29275,11 +29274,9 @@ convert._ASCII_MASK = 127;
 const _subsetMask = Symbol('_subsetMask');
 convert.Converter$ = dart.generic((S, T) => {
   let StreamOfS = () => (StreamOfS = dart.constFn(async.Stream$(S)))();
-  let _ConverterStreamEventSinkOfS$dynamic = () => (_ConverterStreamEventSinkOfS$dynamic = dart.constFn(convert._ConverterStreamEventSink$(S, dart.dynamic)))();
   let StreamTransformerOfS$T = () => (StreamTransformerOfS$T = dart.constFn(async.StreamTransformer$(S, T)))();
   let SinkOfT = () => (SinkOfT = dart.constFn(core.Sink$(T)))();
   let StreamOfT = () => (StreamOfT = dart.constFn(async.Stream$(T)))();
-  let EventSinkTo_ConverterStreamEventSinkOfS$dynamic = () => (EventSinkTo_ConverterStreamEventSinkOfS$dynamic = dart.constFn(dart.definiteFunctionType(_ConverterStreamEventSinkOfS$dynamic(), [async.EventSink])))();
   class Converter extends core.Object {
     new() {
     }
@@ -29295,7 +29292,7 @@ convert.Converter$ = dart.generic((S, T) => {
     }
     bind(stream) {
       StreamOfS()._check(stream);
-      return StreamOfT().eventTransformed(stream, dart.fn(sink => new (_ConverterStreamEventSinkOfS$dynamic())(this, sink), EventSinkTo_ConverterStreamEventSinkOfS$dynamic()));
+      return StreamOfT().eventTransformed(stream, dart.fn(sink => new convert._ConverterStreamEventSink(this, sink), EventSinkTo_ConverterStreamEventSink()));
     }
   }
   dart.addTypeTests(Converter);
@@ -35028,7 +35025,7 @@ core.Uri = class Uri extends core.Object {
     if (dart.test(pathToSplit[dartx.isNotEmpty]) && pathToSplit[dartx.codeUnitAt](0) == core.Uri._SLASH) {
       pathToSplit = pathToSplit[dartx.substring](1);
     }
-    result = pathToSplit == "" ? const || (const = dart.constList([], core.String)) : ListOfString().unmodifiable(pathToSplit[dartx.split]("/")[dartx.map](core.String)(core.Uri.decodeComponent));
+    result = pathToSplit == "" ? const || (const = dart.constList([], core.String)) : ListOfString().unmodifiable(pathToSplit[dartx.split]("/")[dartx.map](dart.dynamic)(core.Uri.decodeComponent));
     this[_pathSegments] = result;
     return result;
   }
@@ -41255,10 +41252,10 @@ html.Element = class Element extends html.Node {
     return html.window[_getComputedStyle](this, pseudoElement);
   }
   get [dartx.client]() {
-    return new (RectangleOfint())(this[dartx.clientLeft], this[dartx.clientTop], this[dartx.clientWidth], this[dartx.clientHeight]);
+    return new (RectangleOfnum())(this[dartx.clientLeft], this[dartx.clientTop], this[dartx.clientWidth], this[dartx.clientHeight]);
   }
   get [dartx.offset]() {
-    return new (RectangleOfint())(this[dartx.offsetLeft], this[dartx.offsetTop], this[dartx.offsetWidth], this[dartx.offsetHeight]);
+    return new (RectangleOfnum())(this[dartx.offsetLeft], this[dartx.offsetTop], this[dartx.offsetWidth], this[dartx.offsetHeight]);
   }
   [dartx.appendText](text) {
     this[dartx.append](html.Text.new(text));
@@ -66067,7 +66064,7 @@ html.MutationObserver = class MutationObserver extends _interceptors.Interceptor
   }
   static new(callback) {
     0;
-    return new (window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver)(_js_helper.convertDartClosureToJS(html._wrapZoneBinaryCallback)(html._wrapBinaryZone(dart.dynamic, dart.dynamic, dart.dynamic)(callback), 2));
+    return new (window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver)(_js_helper.convertDartClosureToJS(dynamicAnddynamicTodynamic())(html._wrapBinaryZone(dart.dynamic, dart.dynamic, dart.dynamic)(callback), 2));
   }
 };
 dart.setSignature(html.MutationObserver, {
@@ -70533,7 +70530,7 @@ dart.defineExtensionNames([
 ]);
 html.Screen = class Screen extends _interceptors.Interceptor {
   get [dartx.available]() {
-    return new (RectangleOfint())(this[_availLeft], this[_availTop], this[_availWidth], this[_availHeight]);
+    return new (RectangleOfnum())(this[_availLeft], this[_availTop], this[_availWidth], this[_availHeight]);
   }
   static _() {
     dart.throw(new core.UnsupportedError("Not supported"));

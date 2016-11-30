@@ -629,7 +629,7 @@ class StaticTypeAnalyzer extends SimpleAstVisitor<Object> {
     // If there are no type arguments and we are in strong mode, try to infer
     // some arguments.
     if (_strongMode) {
-      DartType contextType = InferenceContext.getType(node);
+      DartType contextType = InferenceContext.getContext(node);
 
       // Use both downwards and upwards information to infer the type.
       var ts = _typeSystem as StrongTypeSystemImpl;
@@ -638,11 +638,13 @@ class StaticTypeAnalyzer extends SimpleAstVisitor<Object> {
           .where((t) => t != null)
           .toList();
       var listTypeParam = _typeProvider.listType.typeParameters[0].type;
+      var syntheticParamElement = new ParameterElementImpl.synthetic(
+          'element', listTypeParam, ParameterKind.POSITIONAL);
 
-      DartType inferred = ts.inferGenericFunctionCall(
+      DartType inferred = ts.inferGenericFunctionOrType/*<InterfaceType>*/(
           _typeProvider,
           _typeProvider.listType,
-          new List.filled(elementTypes.length, listTypeParam),
+          new List.filled(elementTypes.length, syntheticParamElement),
           elementTypes,
           _typeProvider.listType,
           contextType,
@@ -711,7 +713,7 @@ class StaticTypeAnalyzer extends SimpleAstVisitor<Object> {
     // If we have no explicit type arguments, and we are in strong mode
     // then try to infer type arguments.
     if (_strongMode) {
-      DartType contextType = InferenceContext.getType(node);
+      DartType contextType = InferenceContext.getContext(node);
 
       // Use both downwards and upwards information to infer the type.
       var ts = _typeSystem as StrongTypeSystemImpl;
@@ -721,13 +723,19 @@ class StaticTypeAnalyzer extends SimpleAstVisitor<Object> {
           node.entries.map((e) => e.value.staticType).where((t) => t != null);
       var keyTypeParam = _typeProvider.mapType.typeParameters[0].type;
       var valueTypeParam = _typeProvider.mapType.typeParameters[1].type;
+      var syntheticKeyParameter = new ParameterElementImpl.synthetic(
+          'key', keyTypeParam, ParameterKind.POSITIONAL);
+      var syntheticValueParameter = new ParameterElementImpl.synthetic(
+          'value', valueTypeParam, ParameterKind.POSITIONAL);
 
-      DartType inferred = ts.inferGenericFunctionCall(
+      ParameterizedType inferred = ts.inferGenericFunctionOrType(
           _typeProvider,
           _typeProvider.mapType,
-          new List.filled(keyTypes.length, keyTypeParam, growable: true)
-            ..addAll(new List.filled(valueTypes.length, valueTypeParam)),
-          new List.from(keyTypes)..addAll(valueTypes),
+          new List.filled(keyTypes.length, syntheticKeyParameter,
+              growable: true)
+            ..addAll(
+                new List.filled(valueTypes.length, syntheticValueParameter)),
+          new List<DartType>.from(keyTypes)..addAll(valueTypes),
           _typeProvider.mapType,
           contextType,
           errorReporter: _resolver.errorReporter,
@@ -1629,7 +1637,11 @@ class StaticTypeAnalyzer extends SimpleAstVisitor<Object> {
 
     type = type.substitute2(freshTypeVars, typeVars);
 
-    var function = new FunctionElementImpl("", -1);
+    var name = cls.name;
+    if (constructor.name != null) {
+      name += '.' + constructor.name;
+    }
+    var function = new FunctionElementImpl(name, -1);
     function.isSynthetic = true;
     function.returnType = type.returnType;
     function.typeParameters = freshVarElements;
@@ -1964,12 +1976,12 @@ class StaticTypeAnalyzer extends SimpleAstVisitor<Object> {
       List<ParameterElement> rawParameters = ResolverVisitor
           .resolveArgumentsToParameters(argumentList, fnType.parameters, null);
 
-      List<DartType> paramTypes = <DartType>[];
+      List<ParameterElement> params = <ParameterElement>[];
       List<DartType> argTypes = <DartType>[];
       for (int i = 0, length = rawParameters.length; i < length; i++) {
         ParameterElement parameter = rawParameters[i];
         if (parameter != null) {
-          paramTypes.add(parameter.type);
+          params.add(parameter);
           argTypes.add(argumentList.arguments[i].staticType);
         }
       }
@@ -1986,7 +1998,7 @@ class StaticTypeAnalyzer extends SimpleAstVisitor<Object> {
       // ... and finish the inference using that.
       if (argTypes.isNotEmpty && _resolver.isFutureThen(fnType.element)) {
         var firstArgType = argTypes[0];
-        var firstParamType = paramTypes[0] as FunctionType;
+        var firstParamType = params[0].type as FunctionType;
         if (firstArgType is FunctionType) {
           var argReturnType = firstArgType.returnType;
           // Skip the inference if we have the top type. It can only lead to
@@ -2007,11 +2019,12 @@ class StaticTypeAnalyzer extends SimpleAstVisitor<Object> {
               ..returnType = paramReturnType;
             function.type = new FunctionTypeImpl(function);
             // Use this as the expected 1st parameter type.
-            paramTypes[0] = function.type;
+            params[0] = new ParameterElementImpl.synthetic(
+                params[0].name, function.type, params[0].parameterKind);
           }
         }
       }
-      return ts.inferGenericFunctionCall(_typeProvider, fnType, paramTypes,
+      return ts.inferGenericFunctionOrType(_typeProvider, fnType, params,
           argTypes, fnType.returnType, InferenceContext.getContext(node),
           errorReporter: _resolver.errorReporter, errorNode: errorNode);
     }

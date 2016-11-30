@@ -2653,13 +2653,13 @@ class ExprTypeComputer {
         }
       } else if (rawMethodType.typeFormals.isNotEmpty &&
           ts is StrongTypeSystemImpl) {
-        List<DartType> paramTypes = <DartType>[];
+        List<ParameterElement> params = <ParameterElement>[];
         List<DartType> argTypes = <DartType>[];
         // Add positional parameter and argument types.
         for (int i = 0; i < numPositional; i++) {
           ParameterElement parameter = rawMethodType.parameters[i];
           if (parameter != null) {
-            paramTypes.add(parameter.type);
+            params.add(parameter);
             argTypes.add(positionalArgTypes[i]);
           }
         }
@@ -2671,23 +2671,20 @@ class ExprTypeComputer {
           namedArgTypes[name] = type;
         }
         // Add named parameter and argument types.
-        Map<String, DartType> namedParameterTypes =
-            rawMethodType.namedParameterTypes;
+        Map<String, ParameterElement> namedParameters = new Map.fromIterable(
+            rawMethodType.parameters
+                .where((p) => p.parameterKind == ParameterKind.NAMED),
+            key: (p) => p.name);
         namedArgTypes.forEach((String name, DartType argType) {
-          DartType parameterType = namedParameterTypes[name];
-          if (parameterType != null) {
-            paramTypes.add(parameterType);
+          ParameterElement parameter = namedParameters[name];
+          if (parameter != null) {
+            params.add(parameter);
             argTypes.add(argType);
           }
         });
         // Perform inference.
-        FunctionType inferred = ts.inferGenericFunctionCall(
-            typeProvider,
-            rawMethodType,
-            paramTypes,
-            argTypes,
-            rawMethodType.returnType,
-            null);
+        FunctionType inferred = ts.inferGenericFunctionOrType(typeProvider,
+            rawMethodType, params, argTypes, rawMethodType.returnType, null);
         return inferred;
       }
     }

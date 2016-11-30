@@ -8,7 +8,7 @@ import 'dart:collection';
 import 'dart:math' as math;
 
 import 'package:analyzer/dart/ast/ast.dart' show AstNode;
-import 'package:analyzer/dart/ast/token.dart' show TokenType;
+import 'package:analyzer/dart/ast/token.dart' show Keyword, TokenType;
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:analyzer/error/listener.dart' show ErrorReporter;
@@ -49,11 +49,8 @@ class FutureUnionType extends TypeImpl {
   /**
    * Creates a union of `Future<T> | T`.
    */
-  FutureUnionType._(DartType type, TypeProvider provider, TypeSystem system)
-      : _types = [
-          provider.futureType.instantiate([type]),
-          type
-        ],
+  FutureUnionType._(DartType type, DartType futureOfType)
+      : _types = [futureOfType, type],
         super(null, null);
 
   DartType get futureOfType => _types[0];
@@ -105,8 +102,14 @@ class FutureUnionType extends TypeImpl {
 
   @override
   DartType substitute2(List<DartType> args, List<DartType> params,
-          [List<FunctionTypeAliasElement> prune]) =>
-      throw new UnsupportedError('Future unions are not used in typedefs');
+      [List<FunctionTypeAliasElement> prune]) {
+    var substituted = type.substitute2(args, params);
+    if (substituted != type) {
+      return new FutureUnionType._(
+          substituted, futureOfType.substitute2(args, params));
+    }
+    return this;
+  }
 
   /**
    * Creates a union of `T | Future<T>`, unless `T` is already a future or a
@@ -141,7 +144,7 @@ class FutureUnionType extends TypeImpl {
     if (type is FutureUnionType) {
       return type;
     }
-    return new FutureUnionType._(type, provider, system);
+    return new FutureUnionType._(type, provider.futureType.instantiate([type]));
   }
 }
 
@@ -327,7 +330,7 @@ class StrongTypeSystemImpl extends TypeSystem {
    * Given a generic function type `F<T0, T1, ... Tn>` and a context type C,
    * infer an instantiation of F, such that `F<S0, S1, ..., Sn>` <: C.
    *
-   * This is similar to [inferGenericFunctionCall], but the return type is also
+   * This is similar to [inferGenericFunctionOrType], but the return type is also
    * considered as part of the solution.
    *
    * If this function is called with a [contextType] that is also
@@ -351,29 +354,26 @@ class StrongTypeSystemImpl extends TypeSystem {
     // formals as we check the parameters and return type.
     var inferFnType =
         fnType.instantiate(TypeParameterTypeImpl.getTypes(fnType.typeFormals));
+    inferringTypeSystem._constraintOrigin =
+        new _TypeConstraintFromReturnType(inferFnType, contextType);
     if (!inferringTypeSystem.isSubtypeOf(inferFnType, contextType)) {
       return fnType;
     }
 
-    // Try to infer and instantiate the resulting type.
-    var resultType = inferringTypeSystem._infer(
+    // Infer and instantiate the resulting type.
+    // TODO(jmesserly): should we issue an inference error here, or rely on it
+    // to happen later?
+    return inferringTypeSystem._infer(
         fnType, fnType.typeFormals, fnType.returnType);
-
-    // If the instantiation failed (because some type variable constraints
-    // could not be solved, in other words, we could not find a valid subtype),
-    // then return the original type, so the error is in terms of it.
-    //
-    // It would be safe to return a partial solution here, but the user
-    // experience may be better if we simply do not infer in this case.
-    //
-    // TODO(jmesserly): this heuristic is old. Maybe we should we issue the
-    // inference error?
-    return resultType ?? fnType;
   }
 
-  /// Given a function type with generic type parameters, infer the type
-  /// parameters from the actual argument types, and return the instantiated
-  /// function type. If we can't, returns the original function type.
+  /// Infers a generic type, function, method, or list/map literal
+  /// instantiation, using the downward context type as well as the argument
+  /// types if available.
+  ///
+  /// For example, given a function type with generic type parameters, this
+  /// infers the type parameters from the actual argument types, and returns the
+  /// instantiated function type.
   ///
   /// Concretely, given a function type with parameter types P0, P1, ... Pn,
   /// result type R, and generic type parameters T0, T1, ... Tm, use the
@@ -384,18 +384,20 @@ class StrongTypeSystemImpl extends TypeSystem {
   /// recording the lower or upper bound it must satisfy. At the end, all
   /// constraints can be combined to determine the type.
   ///
-  /// As a simplification, we do not actually store all constraints on each type
-  /// parameter Tj. Instead we track Uj and Lj where U is the upper bound and
-  /// L is the lower bound of that type parameter.
-  /*=T*/ inferGenericFunctionCall/*<T extends ParameterizedType>*/(
+  /// All constraints on each type parameter Tj are tracked, as well as where
+  /// they originated, so we can issue an error message tracing back to the
+  /// argument values, type parameter "extends" clause, or the return type
+  /// context.
+  /*=T*/ inferGenericFunctionOrType/*<T extends ParameterizedType>*/(
       TypeProvider typeProvider,
       /*=T*/ genericType,
-      List<DartType> declaredParameterTypes,
+      List<ParameterElement> parameters,
       List<DartType> argumentTypes,
       DartType declaredReturnType,
       DartType returnContextType,
       {ErrorReporter errorReporter,
-      AstNode errorNode}) {
+      AstNode errorNode,
+      bool downwards: false}) {
     // TODO(jmesserly): expose typeFormals on ParameterizedType.
     List<TypeParameterElement> typeFormals = genericType is FunctionType
         ? genericType.typeFormals
@@ -412,18 +414,24 @@ class StrongTypeSystemImpl extends TypeSystem {
         new _StrongInferenceTypeSystem(typeProvider, this, typeFormals);
 
     if (returnContextType != null) {
-      inferringTypeSystem.isSubtypeOf(declaredReturnType, returnContextType);
+      inferringTypeSystem.constrainReturnType(
+          declaredReturnType, returnContextType);
     }
 
     for (int i = 0; i < argumentTypes.length; i++) {
       // Try to pass each argument to each parameter, recording any type
       // parameter bounds that were implied by this assignment.
-      inferringTypeSystem.isSubtypeOf(
-          argumentTypes[i], declaredParameterTypes[i]);
+      inferringTypeSystem.constrainArgument(
+          argumentTypes[i], parameters[i].type, parameters[i].name,
+          genericType: genericType);
     }
 
     return inferringTypeSystem._infer(
-        genericType, typeFormals, declaredReturnType, errorReporter, errorNode);
+        genericType, typeFormals, declaredReturnType,
+        returnContextType: returnContextType,
+        errorReporter: errorReporter,
+        errorNode: errorNode,
+        downwardsInferPhase: downwards);
   }
 
   /**
@@ -901,6 +909,7 @@ class StrongTypeSystemImpl extends TypeSystem {
     // Trivially true.
     if (_isTop(t2, dynamicIsBottom: dynamicIsBottom) ||
         _isBottom(t1, dynamicIsBottom: dynamicIsBottom)) {
+      guardedInferTypeParameter(t1, t2, visited);
       return true;
     }
 
@@ -1517,18 +1526,52 @@ class _StrongInferenceTypeSystem extends StrongTypeSystemImpl {
   /// The outer strong mode type system, used for GLB and LUB, so we don't
   /// recurse into our constraint solving code.
   final StrongTypeSystemImpl _typeSystem;
-  final Map<TypeParameterType, _TypeParameterBound> _bounds;
+  final Map<TypeParameterType, List<_TypeConstraint>> _constraints;
+
+  /// Where this type constraint came from, used only for error messages.
+  _TypeConstraintOrigin _constraintOrigin;
 
   _StrongInferenceTypeSystem(this._typeProvider, this._typeSystem,
       Iterable<TypeParameterElement> typeFormals)
-      : _bounds = new Map.fromIterable(typeFormals,
-            key: (t) => t.type, value: (t) => new _TypeParameterBound());
+      : _constraints = new Map.fromIterable(typeFormals,
+            key: (t) => t.type, value: (t) => []);
+
+  /// Apply a return type constraint, which asserts that the [declaredType]
+  /// is a subtype of the [contextType].
+  void constrainReturnType(DartType declaredType, DartType contextType) {
+    _constraintOrigin =
+        new _TypeConstraintFromReturnType(declaredType, contextType);
+    isSubtypeOf(declaredType, contextType);
+    // TODO(jmesserly): consider a change to have it be a lower and upper bound.
+    // https://github.com/dart-lang/sdk/issues/27933
+    // isSubtypeOf(contextType, declaredType);
+  }
+
+  /// Apply an argument constraint, which asserts that the [argument] staticType
+  /// is a subtype of the [parameterType].
+  void constrainArgument(
+      DartType argumentType, DartType parameterType, String parameterName,
+      {DartType genericType}) {
+    _constraintOrigin = new _TypeConstraintFromArgument(
+        argumentType, parameterType, parameterName,
+        genericType: genericType);
+    isSubtypeOf(argumentType, parameterType);
+  }
 
   /// Given the constraints that were given by calling [isSubtypeOf], find the
   /// instantiation of the generic function that satisfies these constraints.
+  ///
+  /// If [downwardsInferPhase] is set, we are in the first pass of inference,
+  /// pushing context types down. At that point we are allowed to push down
+  /// `?` to precisely represent an unknown type. If [downwardsInferPhase] is
+  /// false, we are on our final inference pass, have all available information
+  /// including argument types, and must not conclude `?` for any type formal.
   /*=T*/ _infer/*<T extends ParameterizedType>*/(/*=T*/ genericType,
       List<TypeParameterElement> typeFormals, DartType declaredReturnType,
-      [ErrorReporter errorReporter, AstNode errorNode]) {
+      {DartType returnContextType,
+      ErrorReporter errorReporter,
+      AstNode errorNode,
+      bool downwardsInferPhase: false}) {
     List<TypeParameterType> fnTypeParams =
         TypeParameterTypeImpl.getTypes(typeFormals);
 
@@ -1539,6 +1582,10 @@ class _StrongInferenceTypeSystem extends StrongTypeSystemImpl {
     var inferredTypes = new List<DartType>.filled(
         fnTypeParams.length, DynamicTypeImpl.instance,
         growable: false);
+
+    // True if we have a return context type that does not contain `?`.
+    var hasKnownReturnType = returnContextType != null &&
+        !UnknownInferredType.typeIsUnknown(returnContextType);
 
     for (int i = 0; i < fnTypeParams.length; i++) {
       TypeParameterType typeParam = fnTypeParams[i];
@@ -1563,126 +1610,230 @@ class _StrongInferenceTypeSystem extends StrongTypeSystemImpl {
       DartType declaredUpperBound = typeParam.element.bound;
       if (declaredUpperBound != null) {
         // Assert that the type parameter is a subtype of its bound.
-        _inferTypeParameterSubtypeOf(typeParam,
-            declaredUpperBound.substitute2(inferredTypes, fnTypeParams), null);
+        declaredUpperBound =
+            declaredUpperBound.substitute2(inferredTypes, fnTypeParams);
+        _constraintOrigin =
+            new _TypeConstraintFromExtendsClause(typeParam, declaredUpperBound);
+        _inferTypeParameterSubtypeOf(typeParam, declaredUpperBound, null);
       }
 
-      // Now we've computed lower and upper bounds for each type parameter.
-      //
-      // To decide on which type to assign, we look at the return type and see
-      // if the type parameter occurs in covariant or contravariant positions.
-      //
-      // If the type is "passed in" at all, or if our lower bound was bottom,
-      // we choose the upper bound as being the most useful.
-      //
-      // Otherwise we choose the more precise lower bound.
-      _TypeParameterVariance variance =
+      var variance =
           new _TypeParameterVariance.from(typeParam, declaredReturnType);
-
-      _TypeParameterBound bound = _bounds[typeParam];
-      DartType lowerBound = bound.lower;
-      DartType upperBound = bound.upper;
-
-      // Collapse future unions if we inferred them somehow.
-      //
-      // TODO(jmesserly): in our initial upward phase it would be fine to
-      // keep the FutureUnionType for the argument downward context.
-      //
-      // We need to track in `inferGenericFunctionCall` whether we are going up
-      // or down. This would also allow for an improved heuristic: if we are
-      // doing our final inference, the downward context can take priority.
-      if (lowerBound is FutureUnionType) {
-        // lowerBound <: T, where lowerBound is Future<A> | A.
-        // So we choose lowerBound as LUB(A, Future<A>).
-        //
-        // This will typically lead to top with the current rules, but it will
-        // work with `bottom` or if we remove Future flattening.
-        var f = lowerBound as FutureUnionType;
-        lowerBound = _typeSystem.getLeastUpperBound(
-            _typeProvider, f.futureOfType, f.type);
-      }
-      if (upperBound is FutureUnionType) {
-        // T <: upperBound, where upperBound is Future<A> | A.
-        // Therefore we need T <: Future<A> or T <: A.
-        //
-        // This is just an arbitrarily heuristic.
-        var f = upperBound as FutureUnionType;
-        if (_typeSystem.isSubtypeOf(lowerBound, f.type)) {
-          upperBound = f.type;
-        } else if (_typeSystem.isSubtypeOf(lowerBound, f.futureOfType)) {
-          upperBound = f.futureOfType;
-        } else {
-          upperBound = f.type;
-        }
+      var inferredType = _inferTypeForTypeParameter(typeParam, variance,
+          downwardsInferPhase: downwardsInferPhase,
+          hasReturnContext: hasKnownReturnType,
+          errorReporter: errorReporter,
+          errorNode: errorNode);
+      if (inferredType == null) {
+        return null; // could not infer error.
       }
 
-      // See if the bounds can be satisfied.
-      // TODO(jmesserly): also we should have an error for unconstrained type
-      // parameters, rather than silently inferring dynamic.
-      if (upperBound.isBottom ||
-          !_typeSystem.isSubtypeOf(lowerBound, upperBound)) {
-        // Inference failed.
-        if (errorReporter == null) {
-          return null;
-        }
-        errorReporter.reportErrorForNode(StrongModeCode.COULD_NOT_INFER,
-            errorNode, [typeParam, lowerBound, upperBound]);
+      // Final inferred type should not have `?`, because we eliminated it
+      // when computing constraints.
+      assert(downwardsInferPhase ||
+          !UnknownInferredType.typeIsUnknown(inferredType));
 
-        // To make the errors more useful, we swap the normal heuristic.
-        //
-        // The normal heuristic prefers using the argument types (upwards
-        // inference, lower bound) to choose a tighter type.
-        //
-        // Here we want to prefer the return context type, so we can put the
-        // blame on the arguments to the function. That will result in narrow
-        // error spans. But ultimately it's just a heuristic, as the code is
-        // already erroneous.
-        //
-        // (we may adjust the normal heuristic too, once upwards+downwards
-        // inference are fully integrated, to prefer downwards info).
-        lowerBound = bound.upper;
-        upperBound = bound.lower;
-      }
-
-      inferredTypes[i] =
-          variance.passedIn && !upperBound.isDynamic || lowerBound.isBottom
-              ? upperBound
-              : lowerBound;
+      inferredTypes[i] = inferredType;
     }
 
     // Return the instantiated type.
     return genericType.instantiate(inferredTypes) as dynamic/*=T*/;
   }
 
+  DartType _inferTypeForTypeParameter(
+      TypeParameterType typeParam, _TypeParameterVariance variance,
+      {bool downwardsInferPhase,
+      bool hasReturnContext,
+      ErrorReporter errorReporter,
+      AstNode errorNode}) {
+    // Combine constraints and compute the lower and upper bounds.
+    var constraints = _constraints[typeParam];
+
+    DartType lower;
+    DartType upper;
+
+    for (var constraint in constraints) {
+      // Ensure T1 <: T2, where T1 is a type parameter we are inferring.
+      // T2 is an upper bound, so merge it with our existing upper bound.
+      //
+      // We already know T1 <: U, for some U.
+      // So update U to reflect the new constraint T1 <: GLB(U, T2)
+      var constraintUpper = constraint.upperBound;
+      if (constraintUpper != null) {
+        if (!downwardsInferPhase) {
+          constraintUpper =
+              UnknownInferredType.upperBoundForType(constraintUpper);
+        }
+        upper = getGreatestLowerBound(
+            _typeProvider, upper ?? DynamicTypeImpl.instance, constraintUpper);
+      }
+      // Ensure T1 <: T2, where T2 is a type parameter we are inferring.
+      // T1 is a lower bound, so merge it with our existing lower bound.
+      //
+      // We already know L <: T2, for some L.
+      // So update L to reflect the new constraint LUB(L, T1) <: T2
+      //
+      var constraintLower = constraint.lowerBound;
+      if (constraintLower != null) {
+        if (!downwardsInferPhase) {
+          constraintLower =
+              UnknownInferredType.lowerBoundForType(constraintLower);
+        }
+        lower = getLeastUpperBound(
+            _typeProvider, lower ?? BottomTypeImpl.instance, constraintLower);
+      }
+    }
+
+    // Collapse future unions if we inferred them.
+    //
+    // TODO(jmesserly): in our initial upward phase it would be fine to
+    // keep the FutureUnionType for the argument downward context, however,
+    // similar to `?` we'd need the ability to substitute them away in any final
+    // types. This is because once we allow the Future union into a type
+    // variable, it ends up inside other types, e.g. List< (Future<T> | T) >.
+    //
+    // For now we avoid the problem by never allowing them into type variables.
+    lower = _collapseFutureUnionLower(lower);
+    upper = _collapseFutureUnionUpper(lower, upper);
+
+    // If we didn't have any type information (neither a lower nor upper
+    // bound), or if the bounds crossed, then we report an error.
+    if (lower == null && upper == null) {
+      // TODO(jmesserly): report an error for an unconstrained type parameter in
+      // final upwards inference?
+      upper = downwardsInferPhase
+          ? UnknownInferredType.instance
+          : DynamicTypeImpl.instance;
+    } else if (lower != null &&
+        upper != null &&
+        !_typeSystem.isSubtypeOf(lower, upper)) {
+      if (errorReporter != null) {
+        errorReporter.reportErrorForNode(StrongModeCode.COULD_NOT_INFER,
+            errorNode, [typeParam, _formatError(constraints)]);
+      }
+
+      // Heuristic: place blame on the parameters, instead of the return type.
+      hasReturnContext = true;
+    } else if (upper != null && upper.isBottom) {
+      // TODO(jmesserly): prevent `bottom` from being used, because we don't
+      // allow this type to be written. It happens in cases like:
+      //
+      //     T f<T extends num>() => null;
+      //     String x = f/* could infer <bottom> */();
+      //
+      // Otherwise we could allow this.
+      if (errorReporter != null) {
+        errorReporter.reportErrorForNode(StrongModeCode.COULD_NOT_INFER,
+            errorNode, [typeParam, _formatError(constraints)]);
+      }
+
+      upper = DynamicTypeImpl.instance;
+    }
+
+    // Choose the bound that was implied by the return type, if any.
+    //
+    // Which bound this is depends on what positions the type parameter
+    // appears in. If the type only appears only in a contravariant position,
+    // we will choose the lower bound instead.
+    //
+    // For example given:
+    //
+    //     Func1<T, bool> makeComparer<T>(T x) => (T y) => x() == y;
+    //
+    //     main() {
+    //       Func1<num, bool> t = makeComparer/* infer <num> */(42);
+    //       print(t(42.0)); // false, no error.
+    //     }
+    //
+    // The constraints we collect are:
+    //
+    // * num <: T
+    // * int <: T
+    //
+    // ... and no upper bound. Therefore the lower bound is the best choice.
+    bool preferUpperBound = false;
+    if (variance.passedIn) {
+      preferUpperBound = !hasReturnContext;
+    } else if (variance.passedOut) {
+      preferUpperBound = hasReturnContext;
+    }
+
+    return preferUpperBound ? (upper ?? lower) : (lower ?? upper);
+  }
+
+  static String _formatError(Iterable<_TypeConstraint> constraints) {
+    // Only report unique constraint origins.
+    List<List<String>> lineParts =
+        new Set<_TypeConstraintOrigin>.from(constraints.map((c) => c.origin))
+            .map((o) => o.formatError())
+            .toList();
+
+    int prefixMax = lineParts.map((p) => p[0].length).fold(0, math.max);
+    int middleMax = lineParts.map((p) => p[1].length).fold(0, math.max);
+
+    var joined = new StringBuffer();
+    for (var parts in lineParts) {
+      var prefix = parts[0];
+      var middle = parts[1];
+      var prefixPad = ' ' * (prefixMax - prefix.length);
+      var middlePad = ' ' * (middleMax - middle.length);
+      joined.writeln('  $prefix$prefixPad $middle$middlePad ${parts[2]}');
+    }
+
+    return '\n\nA type could not be found that satisfies these:\n$joined'
+        '\nConsider passing explicit type argument(s) to the generic.\n\n';
+  }
+
+  DartType _collapseFutureUnionUpper(DartType lower, DartType upper) {
+    if (upper is FutureUnionType) {
+      // T <: upperBound, where upperBound is Future<A> | A.
+      // Therefore we need T <: Future<A> or T <: A.
+      //
+      // This is just an arbitrarily heuristic.
+      var f = upper as FutureUnionType;
+      if (lower != null && _typeSystem.isSubtypeOf(lower, f.type)) {
+        upper = f.type;
+      } else if (lower != null &&
+          _typeSystem.isSubtypeOf(lower, f.futureOfType)) {
+        upper = f.futureOfType;
+      } else {
+        upper = f.type;
+      }
+    }
+    return upper;
+  }
+
+  DartType _collapseFutureUnionLower(DartType lower) {
+    if (lower is FutureUnionType) {
+      // lowerBound <: T, where lowerBound is Future<A> | A.
+      // So we choose lowerBound as LUB(A, Future<A>).
+      //
+      // This will typically lead to top with the current rules, but it will
+      // work with `bottom` or if we remove Future flattening.
+      var f = lower as FutureUnionType;
+      lower =
+          _typeSystem.getLeastUpperBound(_typeProvider, f.futureOfType, f.type);
+    }
+    return lower;
+  }
+
   @override
   bool _inferTypeParameterSubtypeOf(
       DartType t1, DartType t2, Set<Element> visited) {
     if (t1 is TypeParameterType) {
-      _TypeParameterBound bound = _bounds[t1];
-      if (bound != null) {
-        // Ensure T1 <: T2, where T1 is a type parameter we are inferring.
-        // T2 is an upper bound, so merge it with our existing upper bound.
-        //
-        // We already know T1 <: U, for some U.
-        // So update U to reflect the new constraint T1 <: GLB(U, T2)
-        //
-        bound.upper =
-            _typeSystem.getGreatestLowerBound(_typeProvider, bound.upper, t2);
+      var constraints = _constraints[t1];
+      if (constraints != null) {
+        constraints.add(new _TypeConstraint.typeParameterIsSubtypeOf(t1, t2,
+            origin: _constraintOrigin));
         // Optimistically assume we will be able to satisfy the constraint.
         return true;
       }
     }
     if (t2 is TypeParameterType) {
-      _TypeParameterBound bound = _bounds[t2];
-      if (bound != null) {
-        // Ensure T1 <: T2, where T2 is a type parameter we are inferring.
-        // T1 is a lower bound, so merge it with our existing lower bound.
-        //
-        // We already know L <: T2, for some L.
-        // So update L to reflect the new constraint LUB(L, T1) <: T2
-        //
-        bound.lower =
-            _typeSystem.getLeastUpperBound(_typeProvider, bound.lower, t1);
+      var constraints = _constraints[t2];
+      if (constraints != null) {
+        constraints.add(new _TypeConstraint.isSubtypeOfTypeParameter(t1, t2,
+            origin: _constraintOrigin));
         // Optimistically assume we will be able to satisfy the constraint.
         return true;
       }
@@ -1691,8 +1842,91 @@ class _StrongInferenceTypeSystem extends StrongTypeSystemImpl {
   }
 }
 
-/// An [upper] and [lower] bound for a type variable.
-class _TypeParameterBound {
+/// The origin of a type constraint, for the purposes of producing a human
+/// readable error message during type inference.
+///
+/// This class has no effect on type inference computation itself.
+abstract class _TypeConstraintOrigin {
+  List<String> formatError();
+}
+
+class _TypeConstraintFromArgument extends _TypeConstraintOrigin {
+  final DartType argumentType;
+  final DartType parameterType;
+  final String parameterName;
+  final DartType genericType;
+
+  _TypeConstraintFromArgument(
+      this.argumentType, this.parameterType, this.parameterName,
+      {this.genericType});
+
+  @override
+  formatError() {
+    // TODO(jmesserly): we should highlight the span. That would be more useful.
+    // However in summary code it doesn't look like the AST node with span is
+    // available.
+    String prefix;
+    if ((genericType.name == "List" || genericType.name == "Map") &&
+        genericType?.element?.library?.isDartCore == true) {
+      // This will become:
+      //     "List element"
+      //     "Map key"
+      //     "Map value"
+      prefix = "${genericType.name} $parameterName";
+    } else {
+      prefix = "Argument '$parameterName'";
+    }
+
+    return [
+      prefix,
+      "inferred as '$argumentType'",
+      "must be a '$parameterType'."
+    ];
+  }
+}
+
+class _TypeConstraintFromReturnType extends _TypeConstraintOrigin {
+  final DartType contextType;
+  final DartType declaredType;
+
+  _TypeConstraintFromReturnType(this.declaredType, this.contextType);
+
+  @override
+  formatError() {
+    return [
+      "Return type",
+      "declared as '$declaredType'",
+      "must be a '$contextType'."
+    ];
+  }
+}
+
+class _TypeConstraintFromExtendsClause extends _TypeConstraintOrigin {
+  final TypeParameterType typeParam;
+  final DartType extendsType;
+
+  _TypeConstraintFromExtendsClause(this.typeParam, this.extendsType);
+
+  @override
+  formatError() {
+    return [
+      "Type parameter '$typeParam'",
+      "declared to extend '$extendsType'.",
+      ""
+    ];
+  }
+}
+
+/// A constraint on a type parameter that we're inferring.
+class _TypeConstraint {
+  /// The type parameter that is constrained by [lowerBound] or [upperBound].
+  final TypeParameterType typeParameter;
+
+  /// Where this constraint comes from, used for error messages.
+  ///
+  /// See [toString].
+  final _TypeConstraintOrigin origin;
+
   /// The upper bound of the type parameter. In other words, T <: upperBound.
   ///
   /// In Dart this can be written as `<T extends UpperBoundType>`.
@@ -1714,7 +1948,7 @@ class _TypeParameterBound {
   ///
   /// Here the [lower] will be `String` and the upper bound will be `num`,
   /// which cannot be satisfied, so this is ill typed.
-  DartType upper = DynamicTypeImpl.instance;
+  final DartType upperBound;
 
   /// The lower bound of the type parameter. In other words, lowerBound <: T.
   ///
@@ -1733,7 +1967,25 @@ class _TypeParameterBound {
   ///
   /// In general, we choose the lower bound as our inferred type, so we can
   /// offer the most constrained (strongest) result type.
-  DartType lower = BottomTypeImpl.instance;
+  final DartType lowerBound;
+
+  _TypeConstraint.typeParameterIsSubtypeOf(this.typeParameter, this.upperBound,
+      {this.origin})
+      : lowerBound = null {
+    assert(origin != null);
+  }
+
+  _TypeConstraint.isSubtypeOfTypeParameter(this.lowerBound, this.typeParameter,
+      {this.origin})
+      : upperBound = null {
+    assert(origin != null);
+  }
+
+  /// Converts this constraint to a message suitable for a type inference error.
+  @override
+  String toString() => upperBound != null
+      ? "'$typeParameter' must extend '$upperBound'"
+      : "'$lowerBound' must extend '$typeParameter'";
 }
 
 /// Records what positions a type parameter is used in.
@@ -1799,5 +2051,191 @@ class _TypeParameterVariance {
     } else if (type is InterfaceType) {
       _visitInterfaceType(typeParam, type, paramIn);
     }
+  }
+}
+
+/// The synthetic element for [UnknownInferredType].
+class UnknownInferredTypeElement extends ElementImpl
+    implements TypeDefiningElement {
+  static final UnknownInferredTypeElement instance =
+      new UnknownInferredTypeElement._();
+
+  @override
+  UnknownInferredType get type => UnknownInferredType.instance;
+
+  UnknownInferredTypeElement._() : super(Keyword.DYNAMIC.syntax, -1) {
+    setModifier(Modifier.SYNTHETIC, true);
+  }
+
+  @override
+  ElementKind get kind => ElementKind.DYNAMIC;
+
+  @override
+  accept(ElementVisitor visitor) => null;
+}
+
+/// A type that is being inferred but is not currently known.
+///
+/// This type will only appear in a downward inference context for type
+/// parameters that we do not know yet. Notationally it is written `?`, for
+/// example `List<?>`. This is distinct from `List<dynamic>`. These types will
+/// never appear in the final resolved AST.
+class UnknownInferredType extends TypeImpl {
+  static final UnknownInferredType instance = new UnknownInferredType._();
+
+  UnknownInferredType._()
+      : super(UnknownInferredTypeElement.instance, Keyword.DYNAMIC.syntax);
+
+  @override
+  int get hashCode => 1;
+
+  @override
+  bool get isDynamic => true;
+
+  @override
+  bool operator ==(Object object) => identical(object, this);
+
+  @override
+  bool isMoreSpecificThan(DartType type,
+      [bool withDynamic = false, Set<Element> visitedElements]) {
+    // T is S
+    if (identical(this, type)) {
+      return true;
+    }
+    // else
+    return withDynamic;
+  }
+
+  @override
+  bool isSubtypeOf(DartType type) => true;
+
+  @override
+  bool isSupertypeOf(DartType type) => true;
+
+  @override
+  TypeImpl pruned(List<FunctionTypeAliasElement> prune) => this;
+
+  @override
+  DartType substitute2(
+      List<DartType> argumentTypes, List<DartType> parameterTypes,
+      [List<FunctionTypeAliasElement> prune]) {
+    int length = parameterTypes.length;
+    for (int i = 0; i < length; i++) {
+      if (parameterTypes[i] == this) {
+        return argumentTypes[i];
+      }
+    }
+    return this;
+  }
+
+  @override
+  void appendTo(StringBuffer buffer) {
+    buffer.write('?');
+  }
+
+  // Given a [type] T, return true if it has an unknown type `?`.
+  static bool typeIsUnknown(DartType type) {
+    if (identical(type, UnknownInferredType.instance)) {
+      return true;
+    }
+    if (type is InterfaceTypeImpl) {
+      return type.typeArguments.any(typeIsUnknown);
+    }
+    if (type is FunctionType) {
+      return typeIsUnknown(type.returnType) ||
+          type.parameters.any((p) => typeIsUnknown(p.type));
+    }
+    return false;
+  }
+
+  // Given a [type] T that may have an unknown type `?`, returns a type
+  // R such that T <: R for any type substituted for `?`.
+  //
+  // In practice this will always replace `?` with either bottom or top
+  // (dynamic), depending on the position of `?`.
+  static DartType upperBoundForType(DartType type) {
+    return _substituteForUnknownType(type, _useDynamicOrBottom);
+  }
+
+  // Given a [type] T that may have an unknown type `?`, returns a type
+  // R such that R <: T for any type substituted for `?`.
+  //
+  // In practice this will always replace `?` with either bottom or top
+  // (dynamic), depending on the position of `?`.
+  static DartType lowerBoundForType(DartType t) {
+    return _substituteForUnknownType(t, _useDynamicOrBottom, lowerBound: true);
+  }
+
+  // Given a [type] T that may have an unknown type `?`,  substitutes `dynamic`
+  // for `?` and returns a new type.
+  static DartType substituteDynamic(DartType t) {
+    // TODO(jmesserly): we can't use substitute2 because it contains an
+    // assertion that types aren't substituted more than once.
+    return _substituteForUnknownType(t, (_) => DynamicTypeImpl.instance);
+  }
+
+  static DartType _useDynamicOrBottom(bool bottomType) {
+    return bottomType ? BottomTypeImpl.instance : DynamicTypeImpl.instance;
+  }
+
+  static DartType _substituteForUnknownType(
+      DartType type, DartType visitUnknown(bool bottomType),
+      {bool lowerBound: false, dynamicIsBottom: false}) {
+    if (identical(type, UnknownInferredType.instance)) {
+      return visitUnknown(lowerBound && !dynamicIsBottom);
+    }
+    if (type is InterfaceTypeImpl) {
+      // Generic types are covariant, so keep the constraint direction.
+      var newTypeArgs = _transformList(
+          type.typeArguments,
+          (t) => _substituteForUnknownType(t, visitUnknown,
+              lowerBound: lowerBound));
+      if (identical(type.typeArguments, newTypeArgs)) return type;
+      return new InterfaceTypeImpl(type.element, type.prunedTypedefs)
+        ..typeArguments = newTypeArgs;
+    }
+    if (type is FunctionType) {
+      var parameters = type.parameters;
+      var returnType = type.returnType;
+      var newParameters = _transformList(parameters, (ParameterElement p) {
+        // Parameters are contravariant, so flip the constraint direction.
+        // Also pass dynamicIsBottom, because this is a fuzzy arrow.
+        var newType = _substituteForUnknownType(p.type, visitUnknown,
+            lowerBound: !lowerBound, dynamicIsBottom: true);
+        return identical(p.type, newType) && p is ParameterElementImpl
+            ? p
+            : new ParameterElementImpl.synthetic(
+                p.name, newType, p.parameterKind);
+      });
+      // Return type is covariant.
+      var newReturnType = _substituteForUnknownType(returnType, visitUnknown,
+          lowerBound: lowerBound);
+      if (identical(parameters, newParameters) &&
+          identical(returnType, newReturnType)) {
+        return type;
+      }
+
+      var function = new FunctionElementImpl(type.name, -1)
+        ..isSynthetic = true
+        ..returnType = newReturnType
+        ..shareTypeParameters(type.typeFormals)
+        ..shareParameters(newParameters);
+      return function.type = new FunctionTypeImpl(function);
+    }
+    return type;
+  }
+
+  static List/*<T>*/ _transformList/*<T>*/(
+      List/*<T>*/ list, /*=T*/ f(/*=T*/ t)) {
+    List/*<T>*/ newList = null;
+    for (var i = 0; i < list.length; i++) {
+      var item = list[i];
+      var newItem = f(item);
+      if (!identical(item, newItem)) {
+        newList ??= new List.from(list);
+        newList[i] = newItem;
+      }
+    }
+    return newList ?? list;
   }
 }

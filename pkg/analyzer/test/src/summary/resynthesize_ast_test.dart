@@ -170,6 +170,12 @@ class AstInferredTypeTest extends AbstractResynthesizeTest
 
   @override
   @failingTest
+  void test_constructors_inferFromArguments_downwardsFromConstructor() {
+    super.test_constructors_inferFromArguments_downwardsFromConstructor();
+  }
+
+  @override
+  @failingTest
   void test_constructors_inferFromArguments_factory() {
     super.test_constructors_inferFromArguments_factory();
   }

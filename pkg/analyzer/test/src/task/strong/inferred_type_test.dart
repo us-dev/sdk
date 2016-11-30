@@ -630,9 +630,9 @@ num y;
 C<int> c_int = /*info:INFERRED_TYPE_ALLOCATION*/new /*error:COULD_NOT_INFER*/C(/*info:DOWN_CAST_IMPLICIT*/y);
 
 // These hints are not reported because we resolve with a null error listener.
-C<num> c_num = /*pass should be info:INFERRED_TYPE_ALLOCATION*/new C(123);
-C<num> c_num2 = (/*pass should be info:INFERRED_TYPE_ALLOCATION*/new C(456))
-    ..t = /*error:INVALID_ASSIGNMENT*/1.0;
+C<num> c_num = /*info:INFERRED_TYPE_ALLOCATION*/new C(123);
+C<num> c_num2 = (/*info:INFERRED_TYPE_ALLOCATION*/new C(456))
+    ..t = 1.0;
 
 // Down't infer from explicit dynamic.
 var c_dynamic = new C<dynamic>(42);
@@ -647,6 +647,20 @@ main() {
     expect(vars.firstWhere((e) => e.name == 'c_num').type.toString(), 'C<num>');
     expect(vars.firstWhere((e) => e.name == 'c_dynamic').type.toString(),
         'C<dynamic>');
+  }
+
+  void test_constructors_inferFromArguments_downwardsFromConstructor() {
+    checkFile(r'''
+class C<T> { C(List<T> list); }
+
+var x = /*info:INFERRED_TYPE_ALLOCATION*/new C(/*info:INFERRED_TYPE_LITERAL*/[123]);
+C<int> y = x;
+
+// TODO(jmesserly): this doesn't infers the right array type `List<dynamic>`
+var a = new C<dynamic>(/*info:INFERRED_TYPE_LITERAL*/[123]);
+// This one however works.
+var b = new C<Object>(/*info:INFERRED_TYPE_LITERAL*/[123]);
+    ''');
   }
 
   void test_constructors_inferFromArguments_const() {
@@ -1154,15 +1168,15 @@ void main() {
                       /*info:INFERRED_TYPE_LITERAL*/[3]]);
 
   new F3(/*info:INFERRED_TYPE_LITERAL*/[]);
-  /*info:INFERRED_TYPE_ALLOCATION*/new F3(/*info:INFERRED_TYPE_LITERAL*/[/*info:INFERRED_TYPE_LITERAL*/[3]]);
-  /*info:INFERRED_TYPE_ALLOCATION*/new F3(/*info:INFERRED_TYPE_LITERAL*/[/*info:INFERRED_TYPE_LITERAL*/["hello"]]);
-  /*info:INFERRED_TYPE_ALLOCATION*/new F3(/*info:INFERRED_TYPE_LITERAL*/[/*info:INFERRED_TYPE_LITERAL*/["hello"],
+  new F3(/*info:INFERRED_TYPE_LITERAL*/[/*info:INFERRED_TYPE_LITERAL*/[3]]);
+  new F3(/*info:INFERRED_TYPE_LITERAL*/[/*info:INFERRED_TYPE_LITERAL*/["hello"]]);
+  new F3(/*info:INFERRED_TYPE_LITERAL*/[/*info:INFERRED_TYPE_LITERAL*/["hello"],
                                         /*info:INFERRED_TYPE_LITERAL*/[3]]);
 
   new F4(a: /*info:INFERRED_TYPE_LITERAL*/[]);
-  /*info:INFERRED_TYPE_ALLOCATION*/new F4(a: /*info:INFERRED_TYPE_LITERAL*/[/*info:INFERRED_TYPE_LITERAL*/[3]]);
-  /*info:INFERRED_TYPE_ALLOCATION*/new F4(a: /*info:INFERRED_TYPE_LITERAL*/[/*info:INFERRED_TYPE_LITERAL*/["hello"]]);
-  /*info:INFERRED_TYPE_ALLOCATION*/new F4(a: /*info:INFERRED_TYPE_LITERAL*/[/*info:INFERRED_TYPE_LITERAL*/["hello"],
+  new F4(a: /*info:INFERRED_TYPE_LITERAL*/[/*info:INFERRED_TYPE_LITERAL*/[3]]);
+  new F4(a: /*info:INFERRED_TYPE_LITERAL*/[/*info:INFERRED_TYPE_LITERAL*/["hello"]]);
+  new F4(a: /*info:INFERRED_TYPE_LITERAL*/[/*info:INFERRED_TYPE_LITERAL*/["hello"],
                                            /*info:INFERRED_TYPE_LITERAL*/[3]]);
 }
 ''');
@@ -2128,28 +2142,6 @@ main() {
 ''');
   }
 
-  void test_genericMethods_correctlyRecognizeGenericUpperBound_comment() {
-    // Regression test for https://github.com/dart-lang/sdk/issues/25740.
-    checkFile(r'''
-class Foo<T extends Pattern> {
-  /*=U*/ method/*<U extends T>*/(/*=U*/ u) => u;
-}
-main() {
-  String s;
-  var a = new Foo().method/*<String>*/("str");
-  s = a;
-  new Foo();
-
-  var b = new Foo<String>().method("str");
-  s = b;
-  var c = new Foo().method("str");
-  s = c;
-
-  new Foo<String>()./*error:COULD_NOT_INFER*/method(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/42);
-}
-''');
-  }
-
   void test_genericMethods_dartMathMinMax() {
     checkFile('''
 import 'dart:math';
@@ -2404,11 +2396,11 @@ takeDDN(math.max);
 takeIIO(math.max);
 takeDDO(math.max);
 
-takeOOI(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/math.max);
+takeOOI(/*error:INVALID_CAST_FUNCTION*/math.max);
 takeIDI(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/math.max);
 takeDID(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/math.max);
-takeOON(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/math.max);
-takeOOO(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/math.max);
+takeOON(/*error:INVALID_CAST_FUNCTION*/math.max);
+takeOOO(/*error:INVALID_CAST_FUNCTION*/math.max);
 
 // Also test SimpleIdentifier
 takeIII(min);
@@ -2421,11 +2413,11 @@ takeDDN(min);
 takeIIO(min);
 takeDDO(min);
 
-takeOOI(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/min);
+takeOOI(/*error:INVALID_CAST_FUNCTION*/min);
 takeIDI(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/min);
 takeDID(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/min);
-takeOON(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/min);
-takeOOO(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/min);
+takeOON(/*error:INVALID_CAST_FUNCTION*/min);
+takeOOO(/*error:INVALID_CAST_FUNCTION*/min);
 
 // Also PropertyAccess
 takeIII(new C().m);
@@ -2447,102 +2439,13 @@ takeDDO(new C().m);
 //
 // That's legal because we're loosening parameter types.
 //
-takeOON(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/new C().m);
-takeOOO(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/new C().m);
+takeOON(/*warning:DOWN_CAST_COMPOSITE*/new C().m);
+takeOOO(/*warning:DOWN_CAST_COMPOSITE*/new C().m);
 
 // Note: this is a warning because a downcast of a method tear-off could work
 // in "normal" Dart, due to bivariance.
-takeOOI(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/new C().m);
-takeIDI(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/new C().m);
-takeDID(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/new C().m);
-}
+takeOOI(/*warning:DOWN_CAST_COMPOSITE*/new C().m);
 
-void takeIII(int fn(int a, int b)) {}
-void takeDDD(double fn(double a, double b)) {}
-void takeIDI(int fn(double a, int b)) {}
-void takeDID(double fn(int a, double b)) {}
-void takeIDN(num fn(double a, int b)) {}
-void takeDIN(num fn(int a, double b)) {}
-void takeIIN(num fn(int a, int b)) {}
-void takeDDN(num fn(double a, double b)) {}
-void takeNNN(num fn(num a, num b)) {}
-void takeOON(num fn(Object a, Object b)) {}
-void takeOOO(num fn(Object a, Object b)) {}
-void takeOOI(int fn(Object a, Object b)) {}
-void takeIIO(Object fn(int a, int b)) {}
-void takeDDO(Object fn(double a, double b)) {}
-''');
-  }
-
-  void test_genericMethods_inferGenericInstantiation_comment() {
-    checkFile('''
-import 'dart:math' as math;
-import 'dart:math' show min;
-
-class C {
-/*=T*/ m/*<T extends num>*/(/*=T*/ x, /*=T*/ y) => null;
-}
-
-main() {
-takeIII(math.max);
-takeDDD(math.max);
-takeNNN(math.max);
-takeIDN(math.max);
-takeDIN(math.max);
-takeIIN(math.max);
-takeDDN(math.max);
-takeIIO(math.max);
-takeDDO(math.max);
-
-takeOOI(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/math.max);
-takeIDI(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/math.max);
-takeDID(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/math.max);
-takeOON(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/math.max);
-takeOOO(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/math.max);
-
-// Also test SimpleIdentifier
-takeIII(min);
-takeDDD(min);
-takeNNN(min);
-takeIDN(min);
-takeDIN(min);
-takeIIN(min);
-takeDDN(min);
-takeIIO(min);
-takeDDO(min);
-
-takeOOI(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/min);
-takeIDI(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/min);
-takeDID(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/min);
-takeOON(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/min);
-takeOOO(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/min);
-
-// Also PropertyAccess
-takeIII(new C().m);
-takeDDD(new C().m);
-takeNNN(new C().m);
-takeIDN(new C().m);
-takeDIN(new C().m);
-takeIIN(new C().m);
-takeDDN(new C().m);
-takeIIO(new C().m);
-takeDDO(new C().m);
-
-// Note: this is a warning because a downcast of a method tear-off could work
-// (derived method can be a subtype):
-//
-//     class D extends C {
-//       S m<S extends num>(Object x, Object y);
-//     }
-//
-// That's legal because we're loosening parameter types.
-//
-takeOON(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/new C().m);
-takeOOO(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/new C().m);
-
-// Note: this is a warning because a downcast of a method tear-off could work
-// in "normal" Dart, due to bivariance.
-takeOOI(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/new C().m);
 takeIDI(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/new C().m);
 takeDID(/*error:ARGUMENT_TYPE_NOT_ASSIGNABLE*/new C().m);
 }

@@ -4299,13 +4299,25 @@ class InferenceContext {
   }
 
   /**
-   * Look for contextual type information attached to [node].  Returns
-   * the type if found, otherwise null.
+   * Look for contextual type information attached to [node], and returns
+   * the type if found.
    *
-   * If [node] has a contextual union type like `T | Future<T>` this will be
-   * returned. You can use [getType] if you prefer to only get the `T`.
+   * If [node] has a contextual union type like `T | Future<T>` or a type that
+   * contains `?` this will be returned. You can use [getValueContext] if you
+   * prefer to eliminate the Future union, or [getType] to eliminate both.
    */
   static DartType getContext(AstNode node) => node?.getProperty(_typeProperty);
+
+  /**
+   * Look for contextual type information attached to [node] and returns it,
+   * eliminating future unions by choosing `T` from `T | Future<T>`.
+   *
+   * See also [getContext].
+   */
+  static DartType getValueContext(AstNode node) {
+    var context = getContext(node);
+    return context is FutureUnionType ? context.type : context;
+  }
 
   /**
    * Look for a single contextual type attached to [node], and returns the type
@@ -4318,9 +4330,9 @@ class InferenceContext {
   static DartType getType(AstNode node) {
     DartType t = getContext(node);
     if (t is FutureUnionType) {
-      return t.type;
+      return _substituteForUnknown(t.type);
     }
-    return t;
+    return _substituteForUnknown(t);
   }
 
   /**
@@ -4331,10 +4343,19 @@ class InferenceContext {
     if (t == null) {
       return DartType.EMPTY_LIST;
     }
-    if (t is FutureUnionType) {
-      return t.types;
-    }
-    return <DartType>[t];
+    Iterable<DartType> result = t is FutureUnionType ? t.types : [t];
+    return result.map(_substituteForUnknown).where((t) => t != null);
+  }
+
+  static DartType _substituteForUnknown(DartType t) {
+    if (t == null) return null;
+    // Since the type is being used for downwards inference, the expression
+    // type E must be a subtype of the context type T, i.e. T is an upper bound.
+    //
+    // TODO(jmesserly): our downwards inference code is not designed to handle
+    // the bottom type, so we need to prevent it from resulting here.
+    // Instead use `dynamic`. See `UnknownInferredType.upperBoundForType`.
+    return UnknownInferredType.substituteDynamic(t);
   }
 
   /**
@@ -5398,7 +5419,7 @@ class ResolverVisitor extends ScopedVisitor {
 
   @override
   Object visitArgumentList(ArgumentList node) {
-    DartType callerType = InferenceContext.getType(node);
+    DartType callerType = InferenceContext.getContext(node);
     if (callerType is FunctionType) {
       Map<String, DartType> namedParameterTypes =
           callerType.namedParameterTypes;
@@ -6155,18 +6176,26 @@ class ResolverVisitor extends ScopedVisitor {
     // check this don't work, since we may have been instantiated
     // to bounds in an earlier phase, and we *do* want to do inference
     // in that case.
-    if (classTypeName.typeArguments == null) {
+
+    if (strongMode && classTypeName.typeArguments == null) {
       // Given a union of context types ` T0 | T1 | ... | Tn`, find the first
       // valid instantiation `new C<Ti>`, if it exists.
       // TODO(jmesserly): if we support union types for real, `new C<Ti | Tj>`
       // will become a valid possibility. Right now the only allowed union is
       // `T | Future<T>` so we can take a simple approach.
-      for (var contextType in InferenceContext.getTypes(node)) {
+
+      TypeDefiningElement classElement = classTypeName.type?.element;
+      // At this point rawType is the interface type whose class is the class
+      // being created, and whose type arguments are the type parameters of the
+      // class declaration.
+      DartType rawType = classElement?.type;
+      Iterable<DartType> contextTypes = InferenceContext.getTypes(node);
+      for (var contextType in contextTypes) {
         if (contextType is InterfaceType &&
             contextType.typeArguments != null &&
             contextType.typeArguments.isNotEmpty) {
           // TODO(jmesserly): for generic methods we use the
-          // StrongTypeSystemImpl.inferGenericFunctionCall, which appears to
+          // StrongTypeSystemImpl.inferGenericFunctionOrType, which appears to
           // be a tad more powerful than matchTypes.
           //
           // For example it can infer this case:
@@ -6175,11 +6204,16 @@ class ResolverVisitor extends ScopedVisitor {
           //     A<C<int>, String> a0 = /*infer<int, String>*/new E("hello");
           //
           // See _inferArgumentTypesFromContext in this file for use of it.
+
+          // TODO(jmesserly): classTypeName.type is the default dynamic
+          // substitution, this is required by matchTypes implementation.
+          // TODO(jmesserly): does this mean we fail when the type has an upper
+          // bound?
           List<DartType> targs =
               inferenceContext.matchTypes(classTypeName.type, contextType);
-          if (targs != null && targs.any((t) => !t.isDynamic)) {
-            ClassElement classElement = classTypeName.type.element;
-            InterfaceType rawType = classElement.type;
+          if (targs != null &&
+              targs.any((t) => !t.isDynamic) &&
+              rawType is InterfaceType) {
             InterfaceType fullType =
                 rawType.substitute2(targs, rawType.typeArguments);
             // The element resolver uses the type on the constructor name, so
@@ -6191,8 +6225,9 @@ class ResolverVisitor extends ScopedVisitor {
       }
     }
     node.constructorName?.accept(this);
-    FunctionType constructorType = node.constructorName.staticElement?.type;
-    if (constructorType != null) {
+    ConstructorElement constructor = node.constructorName.staticElement;
+    FunctionType constructorType = constructor?.type;
+    if (strongMode && constructorType != null) {
       InferenceContext.setType(node.argumentList, constructorType);
     }
     node.argumentList?.accept(this);
@@ -6209,7 +6244,7 @@ class ResolverVisitor extends ScopedVisitor {
 
   @override
   Object visitListLiteral(ListLiteral node) {
-    DartType contextType = InferenceContext.getType(node);
+    DartType contextType = InferenceContext.getValueContext(node);
     List<DartType> targs = null;
     if (node.typeArguments != null) {
       targs = node.typeArguments.arguments.map((t) => t.type).toList();
@@ -6234,7 +6269,7 @@ class ResolverVisitor extends ScopedVisitor {
 
   @override
   Object visitMapLiteral(MapLiteral node) {
-    DartType contextType = InferenceContext.getType(node);
+    DartType contextType = InferenceContext.getValueContext(node);
     List<DartType> targs = null;
     if (node.typeArguments != null) {
       targs = node.typeArguments.arguments.map((t) => t.type).toList();
@@ -6686,18 +6721,18 @@ class ResolverVisitor extends ScopedVisitor {
       DartType originalType = node.function.staticType;
       DartType returnContextType = InferenceContext.getContext(node);
       TypeSystem ts = typeSystem;
-      if (returnContextType != null &&
-          node.typeArguments == null &&
+      if (node.typeArguments == null &&
           originalType is FunctionType &&
           originalType.typeFormals.isNotEmpty &&
           ts is StrongTypeSystemImpl) {
-        contextType = ts.inferGenericFunctionCall(
+        contextType = ts.inferGenericFunctionOrType/*<FunctionType>*/(
             typeProvider,
             originalType,
-            DartType.EMPTY_LIST,
+            ParameterElement.EMPTY_LIST,
             DartType.EMPTY_LIST,
             originalType.returnType,
-            returnContextType);
+            returnContextType,
+            downwards: true);
       }
 
       InferenceContext.setType(node.argumentList, contextType);

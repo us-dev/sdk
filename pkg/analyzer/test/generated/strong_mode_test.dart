@@ -1452,10 +1452,27 @@ class D<S> {
   }
 
   void test_genericFunction_upwardsAndDownwards() {
-    // Regression tests for https://github.com/dart-lang/sdk/issues/27151.
+    // Regression tests for https://github.com/dart-lang/sdk/issues/27586.
     resolveTestUnit(r'List<num> x = [1, 2];');
-    expectInitializerType('x', 'List<int>');
+    expectInitializerType('x', 'List<num>');
   }
+
+  void test_genericFunction_upwardsAndDownwards_Object() {
+    // Regression tests for https://github.com/dart-lang/sdk/issues/27625.
+    resolveTestUnit(r'''
+List<Object> aaa = [];
+List<Object> bbb = [1, 2, 3];
+List<Object> ccc = [null];
+List<Object> ddd = [1 as dynamic];
+List<Object> eee = [new Object()];
+    ''');
+    expectInitializerType('aaa', 'List<Object>');
+    expectInitializerType('bbb', 'List<Object>');
+    expectInitializerType('ccc', 'List<Object>');
+    expectInitializerType('ddd', 'List<Object>');
+    expectInitializerType('eee', 'List<Object>');
+  }
+
 
   void test_genericMethod() {
     resolveTestUnit(r'''

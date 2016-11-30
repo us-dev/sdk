@@ -974,7 +974,8 @@ class StrongGenericFunctionInferenceTest {
     expect(_inferCall(clone, [foo.type, foo.type]), [foo.type]);
 
     // Something invalid...
-    expect(_inferCall(clone, [stringType, numType]), null);
+    expect(_inferCall(clone, [stringType, numType]),
+        [clonable.type.instantiate([dynamicType])]);
   }
 
   void test_genericCastFunction() {
@@ -1088,7 +1089,7 @@ class StrongGenericFunctionInferenceTest {
     // <T extends num>() -> T
     var t = TypeBuilder.variable('T', bound: numType);
     var f = TypeBuilder.function(types: [t], required: [], result: t);
-    expect(_inferCall(f, [], stringType), null);
+    expect(_inferCall(f, [], stringType), [dynamicType]);
   }
 
   void test_unifyParametersToFunctionParam() {
@@ -1105,7 +1106,7 @@ class StrongGenericFunctionInferenceTest {
           TypeBuilder.function(required: [intType], result: dynamicType),
           TypeBuilder.function(required: [doubleType], result: dynamicType)
         ]),
-        null);
+        [dynamicType]);
   }
 
   void test_unusedReturnTypeIsDynamic() {
@@ -1124,13 +1125,8 @@ class StrongGenericFunctionInferenceTest {
 
   List<DartType> _inferCall(FunctionTypeImpl ft, List<DartType> arguments,
       [DartType returnType]) {
-    FunctionType inferred = typeSystem.inferGenericFunctionCall(
-        typeProvider,
-        ft,
-        ft.parameters.map((p) => p.type).toList(),
-        arguments,
-        ft.returnType,
-        returnType);
+    FunctionType inferred = typeSystem.inferGenericFunctionOrType(
+        typeProvider, ft, ft.parameters, arguments, ft.returnType, returnType);
     return inferred?.typeArguments;
   }
 }
