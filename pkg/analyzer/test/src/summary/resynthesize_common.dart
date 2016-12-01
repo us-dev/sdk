@@ -19,7 +19,7 @@ import 'package:analyzer/src/generated/engine.dart';
 import 'package:analyzer/src/generated/resolver.dart' show Namespace;
 import 'package:analyzer/src/generated/sdk.dart';
 import 'package:analyzer/src/generated/source.dart';
-import 'package:analyzer/src/generated/testing/ast_factory.dart';
+import 'package:analyzer/src/generated/testing/ast_test_factory.dart';
 import 'package:analyzer/src/summary/idl.dart';
 import 'package:analyzer/src/summary/resynthesize.dart';
 import 'package:test/test.dart';
@@ -410,7 +410,9 @@ abstract class AbstractResynthesizeTest extends AbstractSingleUnitTest {
         PrefixedIdentifier oTarget = o.target;
         checkElidablePrefix(oTarget.prefix);
         compareConstAsts(
-            r, AstFactory.identifier(oTarget.identifier, o.propertyName), desc);
+            r,
+            AstTestFactory.identifier(oTarget.identifier, o.propertyName),
+            desc);
       } else if (o is PrefixedIdentifier && r is PrefixedIdentifier) {
         compareConstAsts(r.prefix, o.prefix, desc);
         compareConstAsts(r.identifier, o.identifier, desc);
@@ -1116,8 +1118,7 @@ abstract class AbstractResynthesizeTest extends AbstractSingleUnitTest {
   /**
    * Determine the analysis options that should be used for this test.
    */
-  AnalysisOptionsImpl createOptions() =>
-      new AnalysisOptionsImpl()..enableGenericMethods = true;
+  AnalysisOptionsImpl createOptions() => new AnalysisOptionsImpl();
 
   ElementImpl getActualElement(Element element, String desc) {
     if (element == null) {
@@ -2303,6 +2304,12 @@ const vIdentical = (1 == 2) ? 11 : 22;
 ''');
   }
 
+  test_const_topLevel_ifNull() {
+    checkLibrary(r'''
+const vIfNull = 1 ?? 2.0;
+''');
+  }
+
   test_const_topLevel_literal() {
     checkLibrary(r'''
 const vNull = null;
@@ -3231,12 +3238,12 @@ f() {}''');
   }
 
   test_function_type_parameter() {
-    prepareAnalysisContext(createOptions()..enableGenericMethods = true);
+    prepareAnalysisContext(createOptions());
     checkLibrary('T f<T, U>(U u) => null;');
   }
 
   test_function_type_parameter_with_function_typed_parameter() {
-    prepareAnalysisContext(createOptions()..enableGenericMethods = true);
+    prepareAnalysisContext(createOptions());
     checkLibrary('void f<T, U>(T x(U u)) {}');
   }
 
@@ -3245,7 +3252,7 @@ f() {}''');
   }
 
   test_generic_gClass_gMethodStatic() {
-    prepareAnalysisContext(createOptions()..enableGenericMethods = true);
+    prepareAnalysisContext(createOptions());
     checkLibrary('''
 class C<T, U> {
   static void m<V, W>(V v, W w) {
@@ -3434,6 +3441,12 @@ class D extends p.C {} // Prevent "unused import" warning
   }
 
   test_import_short_absolute() {
+    if (resourceProvider.pathContext.separator == '\\') {
+      // This test fails on Windows due to
+      // https://github.com/dart-lang/path/issues/18
+      // TODO(paulberry): reenable once that bug is addressed.
+      return;
+    }
     testFile = '/my/project/bin/test.dart';
     addLibrarySource('/a.dart', 'class C {}');
     checkLibrary('import "/a.dart"; C c;');
@@ -3604,6 +3617,32 @@ var v = f(g: (x, y) {});
         ' abstract class D { void set f(int g(String s)); }');
   }
 
+  void test_inferredType_definedInSdkLibraryPart() {
+    addSource(
+        '/a.dart',
+        r'''
+import 'dart:async';
+class A {
+  m(Stream p) {}
+}
+''');
+    LibraryElement library = checkLibrary(r'''
+import 'a.dart';
+class B extends A {
+  m(p) {}
+}
+  ''');
+    ClassElement b = library.definingCompilationUnit.types[0];
+    ParameterElement p = b.methods[0].parameters[0];
+    // This test should verify that we correctly record inferred types,
+    // when the type is defined in a part of an SDK library. So, test that
+    // the type is actually in a part.
+    Element streamElement = p.type.element;
+    if (streamElement is ClassElement) {
+      expect(streamElement.source, isNot(streamElement.library.source));
+    }
+  }
+
   void test_inferredType_usesSyntheticFunctionType_functionTypedParam() {
     checkLibrary('''
 int f(int x(String y)) => null;
@@ -3612,8 +3651,51 @@ var v = [f, g];
 ''');
   }
 
+  test_inheritance_errors() {
+    checkLibrary('''
+abstract class A {
+  int m();
+}
+
+abstract class B {
+  String m();
+}
+
+abstract class C implements A, B {}
+
+abstract class D extends C {
+  var f;
+}
+''');
+  }
+
   test_initializer_executable_with_return_type_from_closure() {
     checkLibrary('var v = () => 0;');
+  }
+
+  test_initializer_executable_with_return_type_from_closure_await_dynamic() {
+    checkLibrary('var v = (f) async => await f;');
+  }
+
+  test_initializer_executable_with_return_type_from_closure_await_future3_int() {
+    checkLibrary(r'''
+import 'dart:async';
+var v = (Future<Future<Future<int>>> f) async => await f;
+''');
+  }
+
+  test_initializer_executable_with_return_type_from_closure_await_future_int() {
+    checkLibrary(r'''
+import 'dart:async';
+var v = (Future<int> f) async => await f;
+''');
+  }
+
+  test_initializer_executable_with_return_type_from_closure_await_future_noArg() {
+    checkLibrary(r'''
+import 'dart:async';
+var v = (Future f) async => await f;
+''');
   }
 
   test_initializer_executable_with_return_type_from_closure_field() {
@@ -4072,17 +4154,17 @@ class C {
   }
 
   test_method_type_parameter() {
-    prepareAnalysisContext(createOptions()..enableGenericMethods = true);
+    prepareAnalysisContext(createOptions());
     checkLibrary('class C { T f<T, U>(U u) => null; }');
   }
 
   test_method_type_parameter_in_generic_class() {
-    prepareAnalysisContext(createOptions()..enableGenericMethods = true);
+    prepareAnalysisContext(createOptions());
     checkLibrary('class C<T, U> { V f<V, W>(T t, U u, W w) => null; }');
   }
 
   test_method_type_parameter_with_function_typed_parameter() {
-    prepareAnalysisContext(createOptions()..enableGenericMethods = true);
+    prepareAnalysisContext(createOptions());
     checkLibrary('class C { void f<T, U>(T x(U u)) {} }');
   }
 
@@ -4535,47 +4617,51 @@ typedef F();''');
   }
 
   test_unresolved_annotation_namedConstructorCall_noClass() {
-    checkLibrary('@foo.bar() class C {}');
+    checkLibrary('@foo.bar() class C {}', allowErrors: true);
   }
 
   test_unresolved_annotation_namedConstructorCall_noConstructor() {
-    checkLibrary('@String.foo() class C {}');
+    checkLibrary('@String.foo() class C {}', allowErrors: true);
   }
 
   test_unresolved_annotation_prefixedIdentifier_badPrefix() {
-    checkLibrary('@foo.bar class C {}');
+    checkLibrary('@foo.bar class C {}', allowErrors: true);
   }
 
   test_unresolved_annotation_prefixedIdentifier_noDeclaration() {
-    checkLibrary('import "dart:async" as foo; @foo.bar class C {}');
+    checkLibrary('import "dart:async" as foo; @foo.bar class C {}',
+        allowErrors: true);
   }
 
   test_unresolved_annotation_prefixedNamedConstructorCall_badPrefix() {
-    checkLibrary('@foo.bar.baz() class C {}');
+    checkLibrary('@foo.bar.baz() class C {}', allowErrors: true);
   }
 
   test_unresolved_annotation_prefixedNamedConstructorCall_noClass() {
-    checkLibrary('import "dart:async" as foo; @foo.bar.baz() class C {}');
+    checkLibrary('import "dart:async" as foo; @foo.bar.baz() class C {}',
+        allowErrors: true);
   }
 
   test_unresolved_annotation_prefixedNamedConstructorCall_noConstructor() {
-    checkLibrary('import "dart:async" as foo; @foo.Future.bar() class C {}');
+    checkLibrary('import "dart:async" as foo; @foo.Future.bar() class C {}',
+        allowErrors: true);
   }
 
   test_unresolved_annotation_prefixedUnnamedConstructorCall_badPrefix() {
-    checkLibrary('@foo.bar() class C {}');
+    checkLibrary('@foo.bar() class C {}', allowErrors: true);
   }
 
   test_unresolved_annotation_prefixedUnnamedConstructorCall_noClass() {
-    checkLibrary('import "dart:async" as foo; @foo.bar() class C {}');
+    checkLibrary('import "dart:async" as foo; @foo.bar() class C {}',
+        allowErrors: true);
   }
 
   test_unresolved_annotation_simpleIdentifier() {
-    checkLibrary('@foo class C {}');
+    checkLibrary('@foo class C {}', allowErrors: true);
   }
 
   test_unresolved_annotation_unnamedConstructorCall_noClass() {
-    checkLibrary('@foo() class C {}');
+    checkLibrary('@foo() class C {}', allowErrors: true);
   }
 
   test_unresolved_export() {

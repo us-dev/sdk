@@ -74,7 +74,6 @@ UnlinkedPublicNamespace computePublicNamespaceFromText(
   Scanner scanner =
       new Scanner(source, reader, AnalysisErrorListener.NULL_LISTENER);
   Parser parser = new Parser(source, AnalysisErrorListener.NULL_LISTENER);
-  parser.parseGenericMethods = true;
   CompilationUnit unit = parser.parseCompilationUnit(scanner.tokenize());
   UnlinkedPublicNamespace namespace = new UnlinkedPublicNamespace.fromBuffer(
       public_namespace.computePublicNamespace(unit).toBuffer());
@@ -1756,6 +1755,18 @@ var v = (() {
     ]);
   }
 
+  test_constExpr_binary_qq() {
+    UnlinkedVariable variable = serializeVariableText('const v = 1 ?? 2;');
+    _assertUnlinkedConst(variable.initializer.bodyExpr, operators: [
+      UnlinkedExprOperation.pushInt,
+      UnlinkedExprOperation.pushInt,
+      UnlinkedExprOperation.ifNull
+    ], ints: [
+      1,
+      2
+    ]);
+  }
+
   test_constExpr_binary_subtract() {
     UnlinkedVariable variable = serializeVariableText('const v = 1 - 2;');
     _assertUnlinkedConst(variable.initializer.bodyExpr, operators: [
@@ -1830,6 +1841,26 @@ class C<T> {
 ''');
     _assertUnlinkedConst(cls.executables[0].constantInitializers[0].expression,
         operators: [UnlinkedExprOperation.pushParameter], strings: ['T']);
+  }
+
+  test_constExpr_functionExpression() {
+    if (skipNonConstInitializers) {
+      return;
+    }
+    UnlinkedVariable variable = serializeVariableText('''
+import 'dart:async';
+const v = (f) async => await f;
+''');
+    _assertUnlinkedConst(variable.initializer.localFunctions[0].bodyExpr,
+        isValidConst: false,
+        operators: [
+          UnlinkedExprOperation.pushParameter,
+          UnlinkedExprOperation.await
+        ],
+        strings: [
+          'f'
+        ],
+        ints: []);
   }
 
   test_constExpr_functionExpression_asArgument() {

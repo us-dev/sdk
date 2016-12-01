@@ -77,9 +77,10 @@ def to_gn_args(args, mode, arch, target_os):
   # dart_bootstrap if the prebuilt SDK doesn't work.
   gn_args['dart_host_pub_exe'] = ""
 
-  # For Fuchsia support, the default is to not compile in the root
-  # certificates.
-  gn_args['dart_use_fallback_root_certificates'] = True
+  # We only want the fallback root certs in the standalone VM on
+  # Linux and Windows.
+  if gn_args['target_os'] in ['linux', 'win']:
+    gn_args['dart_use_fallback_root_certificates'] = True
 
   gn_args['dart_zlib_path'] = "//runtime/bin/zlib"
 

@@ -426,6 +426,7 @@ class _IndexContributor extends GeneralizingAstVisitor {
     ElementKind elementKind = element?.kind;
     if (elementKind == null ||
         elementKind == ElementKind.DYNAMIC ||
+        elementKind == ElementKind.ERROR ||
         elementKind == ElementKind.LABEL ||
         elementKind == ElementKind.LOCAL_VARIABLE ||
         elementKind == ElementKind.PREFIX ||
@@ -437,6 +438,13 @@ class _IndexContributor extends GeneralizingAstVisitor {
             element is ParameterElement &&
             element.parameterKind != ParameterKind.NAMED ||
         false) {
+      return;
+    }
+    // Ignore named parameters of synthetic functions, e.g. created for LUB.
+    // These functions are not bound to a source, we cannot index them.
+    if (elementKind == ElementKind.PARAMETER &&
+        element is ParameterElement &&
+        element.enclosingElement.isSynthetic) {
       return;
     }
     // Add the relation.

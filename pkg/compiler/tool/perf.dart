@@ -11,14 +11,12 @@ import 'dart:io';
 import 'package:compiler/compiler_new.dart';
 import 'package:compiler/src/apiimpl.dart';
 import 'package:compiler/src/compiler.dart';
-import 'package:compiler/src/kernel/task.dart';
 import 'package:compiler/src/elements/elements.dart';
 import 'package:compiler/src/common.dart';
 import 'package:compiler/src/diagnostics/diagnostic_listener.dart';
 import 'package:compiler/src/diagnostics/messages.dart'
     show Message, MessageTemplate;
 import 'package:compiler/src/io/source_file.dart';
-import 'package:compiler/src/options.dart' show ParserOptions;
 import 'package:compiler/src/options.dart';
 import 'package:compiler/src/parser/element_listener.dart' show ScannerOptions;
 import 'package:compiler/src/parser/listener.dart';
@@ -29,6 +27,7 @@ import 'package:compiler/src/platform_configuration.dart' as platform;
 import 'package:compiler/src/scanner/scanner.dart';
 import 'package:compiler/src/source_file_provider.dart';
 import 'package:compiler/src/tokens/token.dart' show Token;
+import 'package:compiler/src/universe/world_impact.dart' show WorldImpact;
 import 'package:package_config/discovery.dart' show findPackages;
 import 'package:package_config/packages.dart' show Packages;
 import 'package:package_config/src/util.dart' show checkValidPackageUri;
@@ -182,7 +181,7 @@ Future collectSources(SourceFile start, Set<SourceFile> files) async {
 Set<String> parseDirectives(SourceFile source) {
   var tokens = tokenize(source);
   var listener = new DirectiveListener();
-  new PartialParser(listener, const _ParserOptions()).parseUnit(tokens);
+  new PartialParser(listener).parseUnit(tokens);
   return listener.targets;
 }
 
@@ -191,7 +190,7 @@ parseFull(SourceFile source) {
   var tokens = tokenize(source);
   NodeListener listener = new NodeListener(
       const ScannerOptions(canUseNative: true), new FakeReporter(), null);
-  Parser parser = new Parser(listener, const _ParserOptions());
+  Parser parser = new Parser(listener);
   parser.parseUnit(tokens);
   return listener.popNode();
 }
@@ -333,11 +332,6 @@ class _Loader {
   }
 }
 
-class _ParserOptions implements ParserOptions {
-  const _ParserOptions();
-  bool get enableGenericMethodSyntax => true;
-}
-
 generateKernel(Uri entryUri) async {
   var timer = new Stopwatch()..start();
   var options = new CompilerOptions(
@@ -365,7 +359,7 @@ class MyCompiler extends CompilerImpl {
   /// Performs the compilation when all libraries have been loaded.
   void compileLoadedLibraries() =>
       selfTask.measureSubtask("KernelCompiler.compileLoadedLibraries", () {
-        computeMain();
+        WorldImpact mainImpact = computeMain();
         mirrorUsageAnalyzerTask.analyzeUsage(mainApp);
 
         deferredLoadTask.beforeResolution(this);
@@ -375,14 +369,18 @@ class MyCompiler extends CompilerImpl {
             supportSerialization: serialization.supportSerialization);
 
         phase = Compiler.PHASE_RESOLVING;
-
+        enqueuer.resolution.applyImpact(mainImpact);
         // Note: we enqueue everything in the program so we measure generating
         // kernel for the entire code, not just what's reachable from main.
         libraryLoader.libraries.forEach((LibraryElement library) {
-          fullyEnqueueLibrary(library, enqueuer.resolution);
+          enqueuer.resolution.applyImpact(computeImpactForLibrary(library));
         });
 
-        backend.enqueueHelpers(enqueuer.resolution);
+        if (deferredLoadTask.isProgramSplit) {
+          enqueuer.resolution.applyImpact(
+              backend.computeDeferredLoadingImpact());
+        }
+        enqueuer.resolution.applyImpact(backend.computeHelpersImpact());
         resolveLibraryMetadata();
         reporter.log('Resolving...');
         processQueue(enqueuer.resolution, mainFunction);

@@ -28,7 +28,7 @@ vars = {
   "github_dartlang": "https://github.com/dart-lang/%s.git",
 
   "gyp_rev": "@6ee91ad8659871916f9aa840d42e1513befdf638",
-  "co19_rev": "@d4767b4caea3c5828ad8e053cd051d44a59061af",
+  "co19_rev": "@f05d5aee5930bfd487aedf832fbd7b832f502b15",
 
   # Revisions of GN related dependencies.
   "buildtools_revision": "@39b1db2ab4aa4b2ccaa263c29bdf63e7c1ee28aa",
@@ -57,8 +57,8 @@ vars = {
   "csslib_tag" : "@0.13.2",
   "dart2js_info_tag" : "@0.5.0",
   "dart_services_rev" : "@7aea2574e6f3924bf409a80afb8ad52aa2be4f97",
-  "dart_style_rev": "@a2b84e46a9e4044e61e3cc130087c18da40b9665",
-  "dartdoc_tag" : "@v0.9.7+6",
+  "dart_style_tag": "@0.2.13",
+  "dartdoc_tag" : "@v0.9.8",
   "fixnum_tag": "@0.10.5",
   "func_tag": "@0.1.0",
   "glob_tag": "@1.1.3",
@@ -73,7 +73,6 @@ vars = {
   "isolate_tag": "@0.2.3",
   "jinja2_rev": "@2222b31554f03e62600cd7e383376a7c187967a1",
   "json_rpc_2_tag": "@2.0.2",
-  "kernel_rev": "@11edd6208940d227dc0b2cf87a6518d2508c0858",
   "linter_tag": "@0.1.29",
   "logging_tag": "@0.11.3+1",
   "markdown_tag": "@0.11.0",
@@ -204,7 +203,7 @@ deps = {
       (Var("github_mirror") % "dart-services") +
       Var("dart_services_rev"),
   Var("dart_root") + "/third_party/pkg_tested/dart_style":
-      (Var("github_mirror") % "dart_style") + Var("dart_style_rev"),
+      (Var("github_mirror") % "dart_style") + Var("dart_style_tag"),
   Var("dart_root") + "/third_party/pkg/dart2js_info":
       (Var("github_mirror") % "dart2js_info") + Var("dart2js_info_tag"),
   Var("dart_root") + "/third_party/pkg/dartdoc":
@@ -235,8 +234,6 @@ deps = {
       (Var("github_dartlang") % "isolate") + Var("isolate_tag"),
   Var("dart_root") + "/third_party/pkg/json_rpc_2":
       (Var("github_mirror") % "json_rpc_2") + Var("json_rpc_2_tag"),
-  Var("dart_root") + "/third_party/pkg/kernel":
-      (Var("github_mirror") % "kernel") + Var("kernel_rev"),
   Var("dart_root") + "/third_party/pkg/linter":
       (Var("github_mirror") % "linter") + Var("linter_tag"),
   Var("dart_root") + "/third_party/pkg/logging":

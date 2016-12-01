@@ -634,6 +634,7 @@ abstract class LinkedLibrary extends base.SummaryClass {
    * Indicates whether this library was summarized in "fallback mode".  If
    * true, all other fields in the data structure have their default values.
    */
+  @deprecated
   @Id(5)
   bool get fallbackMode;
 
@@ -2333,6 +2334,19 @@ enum UnlinkedExprOperation {
    * that element onto the stack.
    */
   pushLocalFunctionReference,
+
+  /**
+   * Pop the top two values from the stack.  If the first value is non-null,
+   * keep it and discard the second.  Otherwise, keep the second and discard the
+   * first.
+   */
+  ifNull,
+
+  /**
+   * Pop the top value from the stack.  Treat it as a Future and await its
+   * completion.  Then push the awaited value onto the stack.
+   */
+  await,
 }
 
 /**
@@ -2861,6 +2875,7 @@ abstract class UnlinkedUnit extends base.SummaryClass {
    * When this field is non-empty, all other fields in the data structure have
    * their default values.
    */
+  @deprecated
   @Id(16)
   String get fallbackModePath;
 

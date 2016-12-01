@@ -7,6 +7,7 @@ vm_timeline_flags_test: Pass, RuntimeError # Issue 26483
 gc_test: Pass, RuntimeError # Issue 26490
 pause_on_start_and_exit_test: Pass, RuntimeError # Issue 26470
 pause_on_start_then_step_test: Pass, RuntimeError # Issue 26470
+get_allocation_samples_test: Pass, RuntimeError # Inconsistent stack trace
 # Reload is slow on the bots
 reload_sources_test: Pass, Slow
 
@@ -71,6 +72,7 @@ implicit_getter_setter_test: RuntimeError # Field guards unimplemented.
 [ $system == windows ]
 dev_fs_weird_char_test: Skip # Windows disallows question mark in paths
 dev_fs_http_put_weird_char_test: Skip # Windows disallows carriage returns in paths
+complex_reload_test: Skip # Issue 27861
 
 # Service protocol is not supported in product mode.
 [ $mode == product ]

@@ -6,7 +6,7 @@
 
 #include "platform/globals.h"
 #if defined(TARGET_OS_ANDROID) || defined(TARGET_OS_LINUX) ||                  \
-    defined(TARGET_OS_WINDOWS)
+    defined(TARGET_OS_WINDOWS) || defined(TARGET_OS_FUCHSIA)
 
 #include "bin/secure_socket.h"
 #include "bin/secure_socket_boringssl.h"
@@ -766,6 +766,9 @@ void FUNCTION_NAME(SecurityContext_AlpnSupported)(Dart_NativeArguments args) {
 
 static void AddCompiledInCerts(SSLContext* context) {
   if (root_certificates_pem == NULL) {
+    if (SSL_LOG_STATUS) {
+      Log::Print("Missing compiled-in roots\n");
+    }
     return;
   }
   X509_STORE* store = SSL_CTX_get_cert_store(context->context());
@@ -800,7 +803,7 @@ static void LoadRootCertFile(SSLContext* context, const char* file) {
     ThrowIOException(-1, "TlsException", "Failed to find root cert file");
   }
   int status = SSL_CTX_load_verify_locations(context->context(), file, NULL);
-  CheckStatus(status, "TlsException", "Failure trusting builtint roots");
+  CheckStatus(status, "TlsException", "Failure trusting builtin roots");
   if (SSL_LOG_STATUS) {
     Log::Print("Trusting roots from: %s\n", file);
   }
@@ -815,7 +818,7 @@ static void LoadRootCertCache(SSLContext* context, const char* cache) {
     ThrowIOException(-1, "TlsException", "Failed to find root cert cache");
   }
   int status = SSL_CTX_load_verify_locations(context->context(), NULL, cache);
-  CheckStatus(status, "TlsException", "Failure trusting builtint roots");
+  CheckStatus(status, "TlsException", "Failure trusting builtin roots");
   if (SSL_LOG_STATUS) {
     Log::Print("Trusting roots from: %s\n", cache);
   }
@@ -869,10 +872,10 @@ void FUNCTION_NAME(SecurityContext_TrustBuiltinRoots)(
 
   // Fall back on the compiled-in certs if the standard locations don't exist,
   // or we aren't on Linux.
-  AddCompiledInCerts(context);
   if (SSL_LOG_STATUS) {
     Log::Print("Trusting compiled-in roots\n");
   }
+  AddCompiledInCerts(context);
 }
 
 
@@ -1502,6 +1505,10 @@ void SSLFilter::Connect(const char* hostname,
   SSL_set_mode(ssl_, SSL_MODE_AUTO_RETRY);  // TODO(whesse): Is this right?
   SSL_set_ex_data(ssl_, filter_ssl_index, this);
 
+#if defined(TARGET_OS_FUCHSIA)
+  // Temporary workaround until we isolate the memory leak issue.
+  SSL_set_verify(ssl_, SSL_VERIFY_NONE, NULL);
+#else
   if (is_server_) {
     int certificate_mode =
         request_client_certificate ? SSL_VERIFY_PEER : SSL_VERIFY_NONE;
@@ -1526,6 +1533,7 @@ void SSLFilter::Connect(const char* hostname,
     CheckStatus(status, "TlsException",
                 "Set hostname for certificate checking");
   }
+#endif  // defined(TARGET_OS_FUCHSIA)
   // Make the connection:
   if (is_server_) {
     status = SSL_accept(ssl_);
@@ -1560,6 +1568,7 @@ int printErrorCallback(const char* str, size_t len, void* ctx) {
   Log::PrintErr("%.*s\n", static_cast<int>(len), str);
   return 1;
 }
+
 
 void SSLFilter::Handshake() {
   // Try and push handshake along.
@@ -1601,6 +1610,7 @@ void SSLFilter::Handshake() {
     in_handshake_ = false;
   }
 }
+
 
 void SSLFilter::GetSelectedProtocol(Dart_NativeArguments args) {
   const uint8_t* protocol;

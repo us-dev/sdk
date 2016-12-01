@@ -66,7 +66,7 @@ abstract class AbstractConstExprSerializer {
   bool isValidConst = true;
 
   /**
-   * See [UnlinkedExprBuilder.nmae].
+   * See [UnlinkedExprBuilder.name].
    */
   String name = null;
 
@@ -380,6 +380,10 @@ abstract class AbstractConstExprSerializer {
       isValidConst = false;
       _serialize(expr.expression);
       operations.add(UnlinkedExprOperation.throwException);
+    } else if (expr is AwaitExpression) {
+      isValidConst = false;
+      _serialize(expr.expression);
+      operations.add(UnlinkedExprOperation.await);
     } else {
       throw new StateError('Unknown expression type: $expr');
     }
@@ -486,6 +490,8 @@ abstract class AbstractConstExprSerializer {
       operations.add(UnlinkedExprOperation.lessEqual);
     } else if (operator == TokenType.PERCENT) {
       operations.add(UnlinkedExprOperation.modulo);
+    } else if (operator == TokenType.QUESTION_QUESTION) {
+      operations.add(UnlinkedExprOperation.ifNull);
     } else {
       throw new StateError('Unknown operator: $operator');
     }

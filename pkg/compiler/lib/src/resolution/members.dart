@@ -1310,6 +1310,8 @@ class ResolverVisitor extends MappingVisitor<ResolutionResult> {
     Node right = node.arguments.head;
     visitExpression(left);
     visitExpression(right);
+    registry.registerConstantLiteral(new NullConstantExpression());
+    registry.registerDynamicUse(new DynamicUse(Selectors.equals, null));
     registry.registerSendStructure(node, const IfNullStructure());
     return const NoneResult();
   }
@@ -2571,8 +2573,7 @@ class ResolverVisitor extends MappingVisitor<ResolutionResult> {
       } else {
         semantics = new StaticAccess.parameter(element);
       }
-    } else if (element.isInitializingFormal &&
-        options.enableInitializingFormalAccess) {
+    } else if (element.isInitializingFormal) {
       error = reportAndCreateErroneousElement(node.selector, name.text,
           MessageKind.UNDEFINED_STATIC_SETTER_BUT_GETTER, {'name': name});
       semantics = new StaticAccess.finalParameter(element);

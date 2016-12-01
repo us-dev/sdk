@@ -77,7 +77,7 @@ int64_t OS::GetCurrentTimeMillis() {
 
 
 int64_t OS::GetCurrentTimeMicros() {
-  return mx_time_get(MX_CLOCK_MONOTONIC) / 1000;
+  return mx_time_get(MX_CLOCK_UTC) / kNanosecondsPerMicrosecond;
 }
 
 
@@ -157,7 +157,7 @@ int OS::NumberOfAvailableProcessors() {
 
 
 uintptr_t OS::MaxRSS() {
-  UNIMPLEMENTED();
+  // TODO(US-95): Implement.
   return 0;
 }
 
