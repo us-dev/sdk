@@ -38,9 +38,6 @@ external bool debugger({bool when: true, String message});
 
 /// Send a reference to [object] to any attached debuggers.
 
-/// Get a map describing the object 
-external Map<String, dynamic>> getServiceObjectDescriptor(Object object);
-
 /// Get an object id for the object
 external Future<String> getObjectId(Object object);
 

@@ -8,7 +8,7 @@ import 'dart:_internal';
 @patch bool debugger({bool when: true,
                      String message}) native "Developer_debugger";
 
-@patch Map<String, dynamic> getServiceObjectDescriptor(Object obj) native "Developer_getServiceObjectDescriptor";
+@patch String getObjectId(Object obj) native "Developer_getServiceObjectDescriptor";
 
 @patch Object inspect(Object object) native "Developer_inspect";
 

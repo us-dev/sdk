@@ -32,23 +32,13 @@ DEFINE_NATIVE_ENTRY(Developer_debugger, 2) {
   return when.raw();
 }
   
-DEFINE_NATIVE_ENTRY(Developer_getIsolateId, 1) {
-  GET_NATIVE_ARGUMENT(Instance, isolate, arguments->NativeArgAt(0));
-  String* s = null;
-#ifndef PRODUCT
-  if (FLAG_support_service) {
-    s = Service::GetIsolateId(isolate);
-  }
-#endif  // !PRODUCT
-  return s; 
-}
 
-DEFINE_NATIVE_ENTRY(Developer_getServiceObjectDescriptor, 1) {
-  GET_NATIVE_ARGUMENT(String, objectId, arguments->NativeArgAt(0));
+DEFINE_NATIVE_ENTRY(Developer_getObjectId, 1) {
+  GET_NATIVE_ARGUMENT(String, object, arguments->NativeArgAt(0));
   String* m = null; // Map!!!
 #ifndef PRODUCT
   if (FLAG_support_service) {
-    m = Service::GetServiceObjectDescriptor(object); // no it prints itto json somewhere
+    m = Service::GetObjectId(object); 
   }
 #endif  // !PRODUCT
   return m; 

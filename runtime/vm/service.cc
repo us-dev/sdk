@@ -3257,14 +3257,9 @@ static const MethodParameter* request_heap_snapshot_params[] = {
     new BoolParameter("collectGarbage", false /* not required */), NULL,
 };
 
-char* Service::GetIsolateId(Isolate* isolate){
-    RingServiceIdZone r = js.id_zone();// ?
-    return r.GetServiceId(isolate); 
-}
-
-void Service::GetServiceObjectDescriptor(const Object& object){
+char* Service::GetObjectId(const Object& object){
   RingServiceIdZone r = js.id_zone();
-  r.GetServiceId(object);
+  return r.GetServiceId(object);
 }
 
 static bool RequestHeapSnapshot(Thread* thread, JSONStream* js) {
@@ -3599,7 +3594,7 @@ static const MethodParameter* get_object_params[] = {
     new UIntParameter("count", false), NULL,
 };
 
-static const MethodParameter* get_service_object_descriptor_params[] = {
+static const MethodParameter* get_object_id_params[] = {
     RUNNABLE_ISOLATE_PARAMETER, new UIntParameter("offset", false),
     new UIntParameter("count", false), NULL,
 };
@@ -4037,6 +4032,8 @@ static const ServiceMethodDescriptor service_methods_[] = {
     get_isolate_metric_list_params },
   { "getObject", GetObject,
     get_object_params },
+   { "getObjectId", GetObjectId,
+    get_object_id_params },
   { "_getObjectStore", GetObjectStore,
     get_object_store_params },
   { "_getObjectByAddress", GetObjectByAddress,
