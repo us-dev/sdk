@@ -341,7 +341,6 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
 
       'list_insert_test': fail,
       'list_removeat_test': fail,
-      'set_test': fail, // runtime strong mode reject
     },
 
     'corelib/regexp': {
@@ -350,6 +349,7 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
     },
 
     'lib/collection': {
+      'list_test': fail,
     },
 
     'lib/convert': {
@@ -571,6 +571,7 @@ define(['dart_sdk', 'async_helper', 'expect', 'unittest', 'is', 'require'],
       'library_uri_package_test': fail,
       'list_constructor_test_01_multi': fail,
       'list_constructor_test_none_multi': fail,
+      'load_library_test': fail,
       'local_function_is_static_test': fail,
       'local_isolate_test': fail,
       'metadata_allowed_values_test_none_multi': fail,
