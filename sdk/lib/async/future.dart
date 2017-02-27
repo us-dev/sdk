@@ -304,7 +304,7 @@ abstract class Future<T> {
     StackTrace stackTrace;  // The stackTrace that came with the error.
 
     // Handle an error from any of the futures.
-    T handleError(theError, StackTrace theStackTrace) {
+    handleError(theError, StackTrace theStackTrace) {
       remaining--;
       if (values != null) {
         if (cleanUp != null) {
