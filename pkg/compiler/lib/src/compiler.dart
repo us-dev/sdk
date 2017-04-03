@@ -303,16 +303,20 @@ abstract class Compiler {
   //
   // The resulting future will complete with true if the compilation
   // succeeded.
-  Future<bool> run(Uri uri) => selfTask.measureSubtask("Compiler.run", () {
+  Future<bool> run(Uri uri) =>
+      selfTask.measureSubtask("Compiler.run", () async {
         measurer.startWallClock();
 
-        return new Future.sync(() => runInternal(uri))
-            .catchError((error) => _reporter.onError(uri, error))
-            .whenComplete(() {
+        try {
+          await runInternal(uri);
+        } catch (error, stack) {
+          print("STACK! $stack");
+          _reporter.onError(uri, error);
+        } finally {
           measurer.stopWallClock();
-        }).then((_) {
-          return !compilationFailed;
-        });
+        }
+
+        return !compilationFailed;
       });
 
   /// Compute the set of distinct import chains to the library at [uri] within
