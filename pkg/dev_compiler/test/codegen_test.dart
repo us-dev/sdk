@@ -166,7 +166,7 @@ main(List<String> arguments) {
       }
 
       bool expectedCompileTimeError =
-          contents.contains(': compile-time error\n');
+          contents.contains(': compile-time error');
       bool notStrong = notYetStrongTests.contains(name);
       bool crashing = _crashingTests.contains(name);
 
@@ -271,7 +271,7 @@ List<String> _setUpTests(List<String> testDirs) {
     var dirParts = path.split(testDir);
     var sdkTestDir =
         path.join(dirParts[0] + "_strong", path.joinAll(dirParts.skip(1)));
-    var inputPath = path.join(testDirectory, '../../../tests/', sdkTestDir);
+    var inputPath = path.join(testDirectory, '..', '..', '..', 'tests', sdkTestDir);
 
     for (var file in _listFiles(inputPath, recursive: true)) {
       var relativePath = path.relative(file, from: inputPath);
@@ -401,4 +401,4 @@ final _crashingTests = new Set<String>.from([
   'lib/html/custom/js_custom_test',
   'lib/html/custom/mirrors_test',
   'lib/html/custom/regress_194523002_test',
-]);
+].map((p) => p.replaceAll('/', path.separator)));

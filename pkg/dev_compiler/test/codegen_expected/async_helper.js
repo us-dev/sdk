@@ -83,7 +83,7 @@ define(['dart_sdk'], function(dart_sdk) {
   };
   dart.fn(async_helper.asyncTest, FnTovoid());
   dart.trackLibraries("async_helper", {
-    "async_helper.dart": async_helper
+    "/async_helper.dart": async_helper
   }, null);
   // Exports:
   return {

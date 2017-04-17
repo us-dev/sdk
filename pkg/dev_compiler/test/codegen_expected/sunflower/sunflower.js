@@ -167,9 +167,9 @@ define(['dart_sdk'], function(dart_sdk) {
     }
   });
   dart.trackLibraries("sunflower", {
-    "sunflower.dart": sunflower,
-    "circle.dart": circle,
-    "painter.dart": painter
+    "/sunflower.dart": sunflower,
+    "/circle.dart": circle,
+    "/painter.dart": painter
   }, null);
   // Exports:
   return {

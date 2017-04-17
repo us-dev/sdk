@@ -154,11 +154,11 @@ class ModuleCompiler {
 
     var compilingSdk = false;
     for (var sourcePath in unit.sources) {
-      var sourceUri = Uri.parse(sourcePath);
-      if (sourceUri.scheme == '') {
-        sourceUri = path.toUri(path.absolute(sourcePath));
-      } else if (sourceUri.scheme == 'dart') {
-        compilingSdk = true;
+      Uri sourceUri = Uri.parse(sourcePath);
+      if (sourcePath.startsWith('dart:')) {
+          compilingSdk = true;
+      } else if (!sourcePath.startsWith('package:')) {
+        sourceUri = new Uri.file(path.absolute(sourcePath));
       }
       Source source = context.sourceFactory.forUri2(sourceUri);
 
@@ -166,7 +166,7 @@ class ModuleCompiler {
           ' argument.';
       if (source == null) {
         throw new UsageException(
-            'Could not create a source for "$sourcePath". The file name is in'
+            'Could not create a source for "$sourcePath" / "$sourceUri". The file name is in'
             ' the wrong format or was not found.',
             fileUsage);
       } else if (!source.exists()) {

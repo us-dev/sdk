@@ -10,15 +10,20 @@ import 'package:bazel_worker/bazel_worker.dart';
 // TODO(jakemac): Remove once this is a part of the testing library.
 import 'package:bazel_worker/src/async_message_grouper.dart';
 import 'package:bazel_worker/testing.dart';
+import 'package:path/path.dart' show join, joinAll, toUri;
 import 'package:test/test.dart';
 
+File file(List<String> parts) =>
+  new File(joinAll(parts)).absolute;
+
 main() {
+  var workdir = join('test', 'worker');
   group('Hello World', () {
-    final argsFile = new File('test/worker/hello_world.args').absolute;
-    final inputDartFile = new File('test/worker/hello_world.dart').absolute;
-    final outputJsFile = new File('test/worker/out/hello_world.js').absolute;
-    final dartSdkSummary = new File('lib/sdk/ddc_sdk.sum').absolute;
-    final executableArgs = ['bin/dartdevc.dart'];
+    final argsFile = file([workdir, 'hello_world.args']);
+    final inputDartFile = file([workdir, 'hello_world.dart']);
+    final outputJsFile = file([workdir, 'out', 'hello_world.js']);
+    final dartSdkSummary = file(['lib', 'sdk', 'ddc_sdk.sum']);
+    final executableArgs = [join('bin', 'dartdevc.dart')];
     final compilerArgs = [
       '--no-source-map',
       '--no-summarize',
@@ -125,15 +130,15 @@ main() {
   });
 
   group('Hello World with Summaries', () {
-    final greetingDart = new File('test/worker/greeting.dart').absolute;
-    final helloDart = new File('test/worker/hello.dart').absolute;
+    final greetingDart = file([workdir, 'greeting.dart']);
+    final helloDart = file([workdir, 'hello.dart']);
 
-    final greetingJS = new File('test/worker/greeting.js').absolute;
-    final greetingSummary = new File('test/worker/greeting.api.ds').absolute;
-    final helloJS = new File('test/worker/hello_world.js').absolute;
+    final greetingJS = file([workdir, 'greeting.js']);
+    final greetingSummary = file([workdir, 'greeting.api.ds']);
+    final helloJS = file([workdir, 'hello_world.js']);
 
-    final greeting2JS = new File('test/worker/greeting2.js').absolute;
-    final greeting2Summary = new File('test/worker/greeting2.api.ds').absolute;
+    final greeting2JS = file([workdir, 'greeting2.js']);
+    final greeting2Summary = file([workdir, 'greeting2.api.ds']);
 
     setUp(() {
       greetingDart.writeAsStringSync('String greeting = "hello";');
@@ -152,7 +157,7 @@ main() {
     });
 
     test('can compile in basic mode', () {
-      final dartSdkSummary = new File('lib/sdk/ddc_sdk.sum').absolute;
+      final dartSdkSummary = file(['lib', 'sdk', 'ddc_sdk.sum']);
       var result = Process.runSync(Platform.executable, [
         'bin/dartdevc.dart',
         '--summary-extension=api.ds',
@@ -189,7 +194,7 @@ main() {
     });
 
     test('reports error on overlapping summaries', () {
-      final dartSdkSummary = new File('lib/sdk/ddc_sdk.sum').absolute;
+      final dartSdkSummary = file(['lib', 'sdk', 'ddc_sdk.sum']);
       var result = Process.runSync(Platform.executable, [
         'bin/dartdevc.dart',
         '--summary-extension=api.ds',
@@ -239,15 +244,15 @@ main() {
       ]);
       expect(result.exitCode, 65);
       expect(result.stdout, contains("conflict"));
-      expect(result.stdout, contains(greetingDart.path));
+      expect(result.stdout, contains(toUri(greetingDart.path)));
       expect(helloJS.existsSync(), isFalse);
     });
   });
 
   group('Error handling', () {
-    final dartSdkSummary = new File('lib/sdk/ddc_sdk.sum').absolute;
-    final badFileDart = new File('test/worker/bad.dart').absolute;
-    final badFileJs = new File('test/worker/bad.js').absolute;
+    final dartSdkSummary = file(['lib', 'sdk', 'ddc_sdk.sum']);
+    final badFileDart = file([workdir, 'bad.dart']);
+    final badFileJs = file([workdir, 'bad.js']);
 
     tearDown(() {
       if (badFileDart.existsSync()) badFileDart.deleteSync();
@@ -284,11 +289,11 @@ main() {
   });
 
   group('Parts', () {
-    final dartSdkSummary = new File('lib/sdk/ddc_sdk.sum').absolute;
-    final partFile = new File('test/worker/greeting.dart').absolute;
-    final libraryFile = new File('test/worker/hello.dart').absolute;
+    final dartSdkSummary = file(['lib', 'sdk', 'ddc_sdk.sum']);
+    final partFile = file([workdir, 'greeting.dart']);
+    final libraryFile = file([workdir, 'hello.dart']);
 
-    final outJS = new File('test/worker/output.js').absolute;
+    final outJS = file([workdir, 'output.js']);
 
     setUp(() {
       partFile.writeAsStringSync('part of hello;\n'
