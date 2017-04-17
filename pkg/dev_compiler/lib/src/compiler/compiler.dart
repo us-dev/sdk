@@ -497,16 +497,15 @@ class JSModuleFile {
 
     Map builtMap;
     if (options.sourceMap && sourceMap != null) {
-      builtMap =
-          placeSourceMap(sourceMap.build(jsUrl), mapUrl, options.bazelMapping);
+      builtMap = placeSourceMap(
+          sourceMap.build(jsUrl), path.fromUri(mapUrl), options.bazelMapping);
       if (name == 'dart_sdk') {
         builtMap = cleanupSdkSourcemap(builtMap);
       }
       if (options.sourceMapComment) {
-        var relativeMapUrl = path
-            .toUri(
-                path.relative(path.fromUri(mapUrl), from: path.dirname(jsUrl)))
-            .toString();
+        var jsDir = path.dirname(path.fromUri(jsUrl));
+        var relative = path.relative(path.fromUri(mapUrl), from: jsDir);
+        var relativeMapUrl = path.toUri(relative).toString();
         assert(path.dirname(jsUrl) == path.dirname(mapUrl));
         printer.emit('\n//# sourceMappingURL=');
         printer.emit(relativeMapUrl);
@@ -530,7 +529,9 @@ class JSModuleFile {
   void writeCodeSync(ModuleFormat format, String jsPath,
       {bool singleOutFile: false}) {
     String mapPath = jsPath + '.map';
-    var code = getCode(format, jsPath, mapPath, singleOutFile: singleOutFile);
+    var code = getCode(
+        format, path.toUri(jsPath).toString(), path.toUri(mapPath).toString(),
+        singleOutFile: singleOutFile);
     var c = code.code;
     if (singleOutFile) {
       // In singleOutFile mode we wrap each module in an eval statement to
@@ -586,6 +587,7 @@ Map placeSourceMap(
   var map = new Map.from(sourceMap);
   var list = new List.from(map['sources']);
   map['sources'] = list;
+  // TODO(alanknight): Straighten out when we have paths and when URI strings.
   String transformUri(String uri) {
     var match = bazelMappings[path.absolute(uri)];
     if (match != null) return match;
@@ -595,7 +597,7 @@ Map placeSourceMap(
   }
 
   for (int i = 0; i < list.length; i++) {
-    list[i] = transformUri(list[i]);
+    list[i] = transformUri(path.toUri(list[i]).toString());
   }
   map['file'] = transformUri(map['file']);
   return map;
