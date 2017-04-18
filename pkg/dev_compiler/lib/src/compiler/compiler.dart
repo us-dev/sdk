@@ -156,7 +156,7 @@ class ModuleCompiler {
     for (var sourcePath in unit.sources) {
       Uri sourceUri = Uri.parse(sourcePath);
       if (sourcePath.startsWith('dart:')) {
-          compilingSdk = true;
+        compilingSdk = true;
       } else if (!sourcePath.startsWith('package:')) {
         sourceUri = new Uri.file(path.absolute(sourcePath));
       }

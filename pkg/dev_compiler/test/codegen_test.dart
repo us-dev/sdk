@@ -165,8 +165,7 @@ main(List<String> arguments) {
         stackTrace = st;
       }
 
-      bool expectedCompileTimeError =
-          contents.contains(': compile-time error');
+      bool expectedCompileTimeError = contents.contains(': compile-time error');
       bool notStrong = notYetStrongTests.contains(name);
       bool crashing = _crashingTests.contains(name);
       bool inconsistent = _inconsistentTests.contains(name);
@@ -194,9 +193,9 @@ main(List<String> arguments) {
             reason: "test $name expected strong mode errors, but compiled.");
       } else {
         expect(crashing, isFalse, reason: "test $name no longer crashes.");
-        var reason = expectedCompileTimeError ? "expected"
-          : inconsistent ? "platform consistency"
-          : "untriaged strong mode";
+        var reason = expectedCompileTimeError
+            ? "expected"
+            : inconsistent ? "platform consistency" : "untriaged strong mode";
         expect(expectedCompileTimeError || inconsistent || notStrong, isTrue,
             reason: "test $name failed to compile due to $reason errors:"
                 "\n\n${module.errors.join('\n')}.");
@@ -277,7 +276,8 @@ List<String> _setUpTests(List<String> testDirs) {
     var dirParts = path.split(testDir);
     var sdkTestDir =
         path.join(dirParts[0] + "_strong", path.joinAll(dirParts.skip(1)));
-    var inputPath = path.join(testDirectory, '..', '..', '..', 'tests', sdkTestDir);
+    var inputPath =
+        path.join(testDirectory, '..', '..', '..', 'tests', sdkTestDir);
 
     for (var file in _listFiles(inputPath, recursive: true)) {
       var relativePath = path.relative(file, from: inputPath);

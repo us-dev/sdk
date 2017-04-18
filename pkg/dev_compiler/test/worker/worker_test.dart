@@ -13,8 +13,7 @@ import 'package:bazel_worker/testing.dart';
 import 'package:path/path.dart' show join, joinAll, toUri;
 import 'package:test/test.dart';
 
-File file(String path) =>
-  new File(joinAll(path.split('/'))).absolute;
+File file(String path) => new File(joinAll(path.split('/'))).absolute;
 
 main() {
   var dartdevc = join('bin', 'dartdevc.dart');
