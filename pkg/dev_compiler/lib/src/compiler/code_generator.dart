@@ -254,11 +254,12 @@ class CodeGenerator extends Object
     assembler.recordDependencies(summaryData);
 
     var uriToUnit = new Map<String, UnlinkedUnit>.fromIterable(units,
-        key: (u) => u.element.source.uri.toString(), value: (unit) {
-      var unlinked = serializeAstUnlinked(unit);
-      assembler.addUnlinkedUnit(unit.element.source, unlinked);
-      return unlinked;
-    });
+        key: (u) => u.element.source.uri.toString(),
+        value: (unit) {
+          var unlinked = serializeAstUnlinked(unit);
+          assembler.addUnlinkedUnit(unit.element.source, unlinked);
+          return unlinked;
+        });
 
     summary_link
         .link(
@@ -819,8 +820,7 @@ class CodeGenerator extends Object
     var className = isGeneric ? element.name : _emitTopLevelName(element);
     JS.Statement declareInterfaces(JS.Statement decl) {
       if (element.interfaces.isNotEmpty) {
-        var body = [decl]
-          ..add(js.statement('#[#.implements] = () => #;', [
+        var body = [decl]..add(js.statement('#[#.implements] = () => #;', [
             className,
             _runtimeModule,
             new JS.ArrayInitializer(
@@ -2477,8 +2477,8 @@ class CodeGenerator extends Object
     // Rewrite the function to include the return.
     return new JS.Fun(
         fn.params, new JS.Block([body, new JS.Return(fn.params.last)]),
-        typeParams: fn.typeParams,
-        returnType: fn.returnType)..sourceInformation = fn.sourceInformation;
+        typeParams: fn.typeParams, returnType: fn.returnType)
+      ..sourceInformation = fn.sourceInformation;
   }
 
   @override
@@ -6025,8 +6025,9 @@ String jsLibraryName(String libraryRoot, LibraryElement library) {
     // E.g., "foo/bar.dart" and "foo$47bar.dart" would collide.
     qualifiedPath = uri.pathSegments.skip(1).join(encodedSeparator);
   } else if (uri.toFilePath().startsWith(libraryRoot)) {
-    qualifiedPath =
-        uri.path.substring(libraryRoot.length).replaceAll(separator, encodedSeparator);
+    qualifiedPath = uri.path
+        .substring(libraryRoot.length)
+        .replaceAll(separator, encodedSeparator);
   } else {
     // We don't have a unique name.
     throw 'Invalid library root. $libraryRoot does not contain ${uri

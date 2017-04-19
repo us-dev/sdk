@@ -495,8 +495,8 @@ class JSModuleFile {
 
     Map builtMap;
     if (options.sourceMap && sourceMap != null) {
-      builtMap = placeSourceMap(sourceMap.build(jsUrl), mapUrl,
-          options.bazelMapping);
+      builtMap =
+          placeSourceMap(sourceMap.build(jsUrl), mapUrl, options.bazelMapping);
       if (name == 'dart_sdk') {
         builtMap = cleanupSdkSourcemap(builtMap);
       }
@@ -620,19 +620,19 @@ Map cleanupSdkSourcemap(Map sourceMap) {
   return map;
 }
 
-  // Convert a source string to a Uri.  The [source] may be a Dart URI, a file URI,
-  // or a local win/mac/linux path.
-  Uri _sourcePathToUri(String source) {
-    var uri = Uri.parse(source);
-    var scheme = uri.scheme;
-    switch (scheme) {
-      case "dart":
-      case "package":
-      case "file":
-        // A valid URI.
-        return uri;
-      default:
-        // Assume a file path.
-        return new Uri.file(path.absolute(source));
-    }
+// Convert a source string to a Uri.  The [source] may be a Dart URI, a file URI,
+// or a local win/mac/linux path.
+Uri _sourcePathToUri(String source) {
+  var uri = Uri.parse(source);
+  var scheme = uri.scheme;
+  switch (scheme) {
+    case "dart":
+    case "package":
+    case "file":
+      // A valid URI.
+      return uri;
+    default:
+      // Assume a file path.
+      return new Uri.file(path.absolute(source));
   }
+}
