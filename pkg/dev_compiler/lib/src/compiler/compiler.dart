@@ -141,23 +141,6 @@ class ModuleCompiler {
             e.errorCode != StaticTypeWarningCode.UNDEFINED_METHOD);
   }
 
-  // Convert a source string to a Uri.  The [source] may be a Dart URI, a file URI,
-  // or a local win/mac/linux path.
-  Uri _normalizeToUri(String source) {
-    var uri = Uri.parse(source);
-    var scheme = uri.scheme;
-    switch (scheme) {
-      case "dart":
-      case "package":
-      case "file":
-        // A valid URI.
-        return uri;
-      default:
-        // Assume a file path.
-        return new Uri.file(source);
-    }
-  }
-
   /// Compiles a single Dart build unit into a JavaScript module.
   ///
   /// *Warning* - this may require resolving the entire world.
@@ -171,7 +154,7 @@ class ModuleCompiler {
 
     var compilingSdk = false;
     for (var sourcePath in unit.sources) {
-      var sourceUri = _normalizeToUri(sourcePath);
+      var sourceUri = _sourcePathToUri(sourcePath);
       if (sourceUri.scheme == "dart") {
         compilingSdk = true;
       }
@@ -512,7 +495,7 @@ class JSModuleFile {
 
     Map builtMap;
     if (options.sourceMap && sourceMap != null) {
-      builtMap = placeSourceMap(sourceMap.build(jsUrl), _normalizeToUri(mapUrl),
+      builtMap = placeSourceMap(sourceMap.build(jsUrl), mapUrl,
           options.bazelMapping);
       if (name == 'dart_sdk') {
         builtMap = cleanupSdkSourcemap(builtMap);
@@ -594,27 +577,33 @@ class JSModuleCode {
 }
 
 /// Adjusts the source paths in [sourceMap] to be relative to [sourceMapPath],
-/// and returns the new map.
+/// and returns the new map.  Relative paths are in terms of URIs ('/'), not
+/// local OS paths (e.g., windows '\').
 // TODO(jmesserly): find a new home for this.
 Map placeSourceMap(
     Map sourceMap, String sourceMapPath, Map<String, String> bazelMappings) {
-  var dir = path.dirname(sourceMapPath);
   var map = new Map.from(sourceMap);
+  var sourceMapDir = path.dirname(path.absolute(sourceMapPath));
   var list = new List.from(map['sources']);
   map['sources'] = list;
-  // TODO(alanknight): Straighten out when we have paths and when URI strings.
-  String transformUri(String uri) {
-    var match = bazelMappings[path.absolute(uri)];
+
+  String makeRelative(String sourcePath) {
+    // Allow bazel mappings to override.
+    sourcePath = path.absolute(sourcePath);
+    var match = bazelMappings[sourcePath];
     if (match != null) return match;
 
-    // Fall back to a relative path.
-    return path.toUri(path.relative(path.fromUri(uri), from: dir)).toString();
+    // Fall back to a relative path against the source map itself.
+    sourcePath = path.relative(sourcePath, from: sourceMapDir);
+
+    // Convert from relative local path to relative URI.
+    return path.toUri(sourcePath).path;
   }
 
   for (int i = 0; i < list.length; i++) {
-    list[i] = transformUri(path.toUri(list[i]).toString());
+    list[i] = makeRelative(list[i]);
   }
-  map['file'] = transformUri(map['file']);
+  map['file'] = makeRelative(map['file']);
   return map;
 }
 
@@ -630,3 +619,20 @@ Map cleanupSdkSourcemap(Map sourceMap) {
       .toList();
   return map;
 }
+
+  // Convert a source string to a Uri.  The [source] may be a Dart URI, a file URI,
+  // or a local win/mac/linux path.
+  Uri _sourcePathToUri(String source) {
+    var uri = Uri.parse(source);
+    var scheme = uri.scheme;
+    switch (scheme) {
+      case "dart":
+      case "package":
+      case "file":
+        // A valid URI.
+        return uri;
+      default:
+        // Assume a file path.
+        return new Uri.file(path.absolute(source));
+    }
+  }
