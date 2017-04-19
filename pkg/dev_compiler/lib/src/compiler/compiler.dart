@@ -154,7 +154,7 @@ class ModuleCompiler {
 
     var compilingSdk = false;
     for (var sourcePath in unit.sources) {
-      var sourceUri = _sourcePathToUri(sourcePath);
+      var sourceUri = _sourceToUri(sourcePath);
       if (sourceUri.scheme == "dart") {
         compilingSdk = true;
       }
@@ -583,13 +583,18 @@ class JSModuleCode {
 Map placeSourceMap(
     Map sourceMap, String sourceMapPath, Map<String, String> bazelMappings) {
   var map = new Map.from(sourceMap);
+  // Convert to a local file path if it's not.
+  sourceMapPath = path.fromUri(_sourceToUri(sourceMapPath));
   var sourceMapDir = path.dirname(path.absolute(sourceMapPath));
   var list = new List.from(map['sources']);
   map['sources'] = list;
 
   String makeRelative(String sourcePath) {
-    // Allow bazel mappings to override.
+    // Convert to a local file path if it's not.
+    sourcePath = path.fromUri(_sourceToUri(sourcePath));
     sourcePath = path.absolute(sourcePath);
+
+    // Allow bazel mappings to override.
     var match = bazelMappings[sourcePath];
     if (match != null) return match;
 
@@ -622,7 +627,7 @@ Map cleanupSdkSourcemap(Map sourceMap) {
 
 // Convert a source string to a Uri.  The [source] may be a Dart URI, a file URI,
 // or a local win/mac/linux path.
-Uri _sourcePathToUri(String source) {
+Uri _sourceToUri(String source) {
   var uri = Uri.parse(source);
   var scheme = uri.scheme;
   switch (scheme) {
