@@ -423,7 +423,7 @@ class BuildUnit {
   // build units.
   final Func1<Source, String> libraryToModule;
 
-  BuildUnit(this.name, this.libraryRoot, this.sources, this.libraryToModule);
+  BuildUnit(String modulePath, this.libraryRoot, this.sources, this.libraryToModule) : name = '${path.toUri(modulePath)}';
 }
 
 /// The output of Dart->JS compilation.
