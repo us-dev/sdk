@@ -97,7 +97,7 @@ define(['dart_sdk'], function(dart_sdk) {
     names: ['measureFor']
   });
   dart.trackLibraries("BenchmarkBase", {
-    "/BenchmarkBase.dart": BenchmarkBase$
+    "BenchmarkBase.dart": BenchmarkBase$
   }, null);
   // Exports:
   return {

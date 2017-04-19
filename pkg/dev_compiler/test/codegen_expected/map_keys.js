@@ -16,7 +16,7 @@ define(['dart_sdk'], function(dart_sdk) {
   };
   dart.fn(map_keys.main, VoidTodynamic());
   dart.trackLibraries("map_keys", {
-    "/map_keys.dart": map_keys
+    "map_keys.dart": map_keys
   }, null);
   // Exports:
   return {

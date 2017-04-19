@@ -141,6 +141,23 @@ class ModuleCompiler {
             e.errorCode != StaticTypeWarningCode.UNDEFINED_METHOD);
   }
 
+  // Convert a source string to a Uri.  The [source] may be a Dart URI, a file URI,
+  // or a local win/mac/linux path.
+  Uri _normalizeToUri(String source) {
+    var uri = Uri.parse(source);
+    var scheme = uri.scheme;
+    switch (scheme) {
+      case "dart":
+      case "package":
+      case "file":
+        // A valid URI.
+        return uri;
+      default:
+        // Assume a file path.
+        return new Uri.file(source);
+    }
+  }
+
   /// Compiles a single Dart build unit into a JavaScript module.
   ///
   /// *Warning* - this may require resolving the entire world.
@@ -154,19 +171,17 @@ class ModuleCompiler {
 
     var compilingSdk = false;
     for (var sourcePath in unit.sources) {
-      Uri sourceUri = Uri.parse(sourcePath);
-      if (sourcePath.startsWith('dart:')) {
+      var sourceUri = _normalizeToUri(sourcePath);
+      if (sourceUri.scheme == "dart") {
         compilingSdk = true;
-      } else if (!sourcePath.startsWith('package:')) {
-        sourceUri = new Uri.file(path.absolute(sourcePath));
       }
-      Source source = context.sourceFactory.forUri2(sourceUri);
+      var source = context.sourceFactory.forUri2(sourceUri);
 
       var fileUsage = 'You need to pass at least one existing .dart file as an'
           ' argument.';
       if (source == null) {
         throw new UsageException(
-            'Could not create a source for "$sourcePath" / "$sourceUri". The file name is in'
+            'Could not create a source for "$sourcePath". The file name is in'
             ' the wrong format or was not found.',
             fileUsage);
       } else if (!source.exists()) {
@@ -497,8 +512,8 @@ class JSModuleFile {
 
     Map builtMap;
     if (options.sourceMap && sourceMap != null) {
-      builtMap = placeSourceMap(
-          sourceMap.build(jsUrl), path.fromUri(mapUrl), options.bazelMapping);
+      builtMap = placeSourceMap(sourceMap.build(jsUrl), _normalizeToUri(mapUrl),
+          options.bazelMapping);
       if (name == 'dart_sdk') {
         builtMap = cleanupSdkSourcemap(builtMap);
       }

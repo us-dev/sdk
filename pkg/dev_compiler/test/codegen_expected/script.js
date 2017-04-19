@@ -13,7 +13,7 @@ define(['dart_sdk'], function(dart_sdk) {
   };
   dart.fn(script.main, ListOfStringTovoid());
   dart.trackLibraries("script", {
-    "/script.dart": script
+    "script.dart": script
   }, null);
   // Exports:
   return {

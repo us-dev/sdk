@@ -31,7 +31,7 @@ define(['dart_sdk'], function(dart_sdk) {
   };
   dart.fn(src__varargs.spread, dynamicTodynamic());
   dart.trackLibraries("varargs", {
-    "/varargs.dart": varargs,
+    "varargs.dart": varargs,
     "package:js/src/varargs.dart": src__varargs
   }, null);
   // Exports:

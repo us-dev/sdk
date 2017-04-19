@@ -85,7 +85,7 @@ define(['dart_sdk'], function(dart_sdk) {
   };
   dart.fn(src__varargs.spread, dynamicTodynamic());
   dart.trackLibraries("destructuring", {
-    "/destructuring.dart": destructuring,
+    "destructuring.dart": destructuring,
     "package:js/src/varargs.dart": src__varargs
   }, null);
   // Exports:
